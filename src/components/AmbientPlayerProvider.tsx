@@ -55,6 +55,8 @@ type AmbientContextValue = {
   undislike: (id: string) => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
+  ensureAudioContextRunning: () => void;
+  connectNarrationAudio: (audio: HTMLAudioElement) => boolean;
 };
 
 const STORAGE_KEY = "two-paths-ambient-state";
@@ -101,11 +103,14 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+  const narrationGainRef = useRef<GainNode | null>(null);
   const recentHistoryRef = useRef<string[]>([]);
 
   // Create a single shared audio element on the client and route it through
   // Web Audio so the volume slider works on iOS Safari, where
-  // HTMLAudioElement.volume is read-only and silently ignored.
+  // HTMLAudioElement.volume is read-only and silently ignored. A second
+  // gain node sits ready for narration audio elements (lesson voice, topic
+  // previews, answer playback) so they share the same iOS-compatible path.
   useEffect(() => {
     if (audioRef.current) return;
     const audio = new Audio();
@@ -120,12 +125,16 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       if (Ctor) {
         const ctx = new Ctor();
         const source = ctx.createMediaElementSource(audio);
-        const gain = ctx.createGain();
-        gain.gain.value = DEFAULT_VOLUME * AMBIENT_SCALE;
-        source.connect(gain);
-        gain.connect(ctx.destination);
+        const ambientGain = ctx.createGain();
+        ambientGain.gain.value = DEFAULT_VOLUME * AMBIENT_SCALE;
+        source.connect(ambientGain);
+        ambientGain.connect(ctx.destination);
+        const narrationGain = ctx.createGain();
+        narrationGain.gain.value = DEFAULT_VOLUME;
+        narrationGain.connect(ctx.destination);
         audioCtxRef.current = ctx;
-        gainRef.current = gain;
+        gainRef.current = ambientGain;
+        narrationGainRef.current = narrationGain;
         audio.volume = 1;
         return;
       }
@@ -141,6 +150,27 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       ctx.resume().catch(() => {});
     }
   }, []);
+
+  // Route a fresh narration <audio> through the shared narration gain so
+  // the master volume slider controls it. Returns true if Web Audio took
+  // over (caller can stop touching audio.volume); false means the caller
+  // should fall back to setting audio.volume directly.
+  const connectNarrationAudio = useCallback(
+    (audio: HTMLAudioElement): boolean => {
+      const ctx = audioCtxRef.current;
+      const gain = narrationGainRef.current;
+      if (!ctx || !gain) return false;
+      try {
+        const source = ctx.createMediaElementSource(audio);
+        source.connect(gain);
+        audio.volume = 1;
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [],
+  );
 
   // Hydrate from localStorage once
   useEffect(() => {
@@ -163,14 +193,16 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     writeState({ enabled, mode, liked, disliked, volume, volumeRange: "0-1" });
   }, [hydrated, enabled, mode, liked, disliked, volume]);
 
-  // Apply volume to ambient audio (scaled so it sits under narration).
-  // Prefer the gain node — iOS ignores HTMLAudioElement.volume.
+  // Apply volume — prefer the gain nodes so iOS works.
   useEffect(() => {
     const scaled = Math.min(1, volume * AMBIENT_SCALE);
     if (gainRef.current) {
       gainRef.current.gain.value = scaled;
     } else if (audioRef.current) {
       audioRef.current.volume = scaled;
+    }
+    if (narrationGainRef.current) {
+      narrationGainRef.current.gain.value = Math.min(1, volume);
     }
   }, [volume]);
 
@@ -401,6 +433,8 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       undislike,
       seek,
       setVolume,
+      ensureAudioContextRunning,
+      connectNarrationAudio,
     }),
     [
       tracks,
@@ -427,6 +461,8 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       undislike,
       seek,
       setVolume,
+      ensureAudioContextRunning,
+      connectNarrationAudio,
     ],
   );
 
