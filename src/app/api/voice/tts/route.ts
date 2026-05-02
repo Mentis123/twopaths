@@ -1,4 +1,5 @@
 import { synthesizeWithXai, isVoiceId, VoiceProviderError } from "@/lib/voice";
+import { isGeminiConfigured, synthesizeNarration } from "@/lib/gemini";
 import type { Tradition, VoiceId } from "@/lib/types";
 
 export const maxDuration = 30;
@@ -59,6 +60,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Only MP3 output is supported." }, { status: 400 });
   }
 
+  let xaiError: VoiceProviderError | null = null;
+
   try {
     const audio = await synthesizeWithXai({
       text,
@@ -81,19 +84,57 @@ export async function POST(request: Request) {
         "X-Two-Paths-Audio-Hash": audio.cacheKey,
         "X-Two-Paths-Duration-Estimate": String(audio.durationEstimateSeconds),
         "X-Two-Paths-Voice": audio.voiceId,
+        "X-Two-Paths-Provider": "xai",
       },
     });
   } catch (error) {
     if (error instanceof VoiceProviderError) {
-      return Response.json(
-        { error: error.message, retryable: error.retryable },
-        { status: error.status },
+      xaiError = error;
+    } else {
+      xaiError = new VoiceProviderError(
+        "xAI voice request failed.",
+        503,
+        true,
       );
     }
-
-    return Response.json(
-      { error: "Voice narration is temporarily unavailable.", retryable: true },
-      { status: 503 },
-    );
   }
+
+  // Gemini fallback — keeps narration warm even when xAI key/quota fails.
+  if (isGeminiConfigured()) {
+    try {
+      const dataUrl = await synthesizeNarration({
+        script: text,
+        voiceName: "Kore",
+        speechSpeed,
+      });
+
+      if (dataUrl) {
+        // Convert the data URL back to bytes
+        const base64 = dataUrl.split(",")[1] || "";
+        const bytes = Buffer.from(base64, "base64");
+        return new Response(new Uint8Array(bytes), {
+          status: 200,
+          headers: {
+            "Content-Type": "audio/wav",
+            "Content-Length": String(bytes.length),
+            "Cache-Control": "private, max-age=3600",
+            "X-Two-Paths-Voice": "Kore",
+            "X-Two-Paths-Provider": "gemini",
+            "X-Two-Paths-Fallback-Reason": xaiError.message,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Gemini TTS fallback failed", error);
+    }
+  }
+
+  return Response.json(
+    {
+      error: xaiError.message,
+      retryable: xaiError.retryable,
+      provider: "xai",
+    },
+    { status: xaiError.status },
+  );
 }

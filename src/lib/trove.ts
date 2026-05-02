@@ -1209,34 +1209,71 @@ function toTopic(item: TroveItem): Topic {
 }
 
 function buildScript(item: TroveItem, mode: SessionMode) {
-  const traditionFrame =
-    item.tradition === "both"
-      ? "This is a Both Paths session, so the point is not to blend Judaism and Buddhism into one vague mixture. The point is to let two mature languages stand near each other and ask better questions."
-      : item.tradition === "judaism"
-        ? "This is a Jewish path session. We stay close to Jewish sources, practices, and questions, while allowing the material to be intellectually alive."
-        : "This is a Buddhist path session. We stay close to Buddhist sources, practices, and questions, while allowing the material to remain practical and searching.";
+  if (mode === "story") return buildStoryScript(item);
+  if (mode === "quiz") return buildQuizScript(item);
+  return buildListenScript(item);
+}
 
-  const modeFrame =
-    mode === "story"
-      ? "Listen for the story beneath the idea: a person, a practice, a text, or a community trying to make wisdom livable."
-      : mode === "quiz"
-        ? "Listen with one gentle question in mind: what is this teaching training us to notice?"
-        : "Listen slowly, as though the teaching is less an answer than a place to sit for a while.";
+function traditionFrame(item: TroveItem) {
+  if (item.tradition === "both") {
+    return "This is a Both Paths session, so the point is not to blend Judaism and Buddhism into one vague mixture. The point is to let two mature languages stand near each other and ask better questions.";
+  }
+  if (item.tradition === "judaism") {
+    return "This is a Jewish path session. We stay close to Jewish sources, practices, and questions, while allowing the material to be intellectually alive.";
+  }
+  return "This is a Buddhist path session. We stay close to Buddhist sources, practices, and questions, while allowing the material to remain practical and searching.";
+}
 
-  const anchor = item.anchor
+function anchorParagraph(item: TroveItem) {
+  return item.anchor
     ? `A short anchor line for the session is "${item.anchor.text}", from ${item.anchor.attribution}. It is not a slogan to consume quickly; it is a doorway into the topic.`
     : `A useful anchor for the session is this: ${item.keyLine} Let that sentence stay near the center as the reflection unfolds.`;
+}
 
+function buildListenScript(item: TroveItem) {
   return [
     `Let us take up ${item.title} slowly. ${item.summary}`,
-    traditionFrame,
-    modeFrame,
-    anchor,
+    traditionFrame(item),
+    "Listen slowly, as though the teaching is less an answer than a place to sit for a while.",
+    anchorParagraph(item),
     ...item.context,
     `Here is the more demanding angle. ${item.deepening}`,
     `For today, make it concrete: ${item.practice}`,
     `The treasure in this topic is not only information. It is a way of seeing. ${item.takeaway}`,
     `You might carry one question after the session: ${item.reflection}`,
+  ].join("\n\n");
+}
+
+function buildStoryScript(item: TroveItem) {
+  const peopleClause =
+    item.figures.length === 0
+      ? "a teaching that has been carried through many hands"
+      : item.figures.length === 1
+        ? `a teaching carried through ${item.figures[0]}`
+        : `a teaching carried through ${item.figures.slice(0, -1).join(", ")} and ${item.figures[item.figures.length - 1]}`;
+
+  return [
+    `Here is ${peopleClause}. The story today is ${item.title}.`,
+    traditionFrame(item),
+    `Imagine the world this teaching grew in. ${item.context[0]}`,
+    item.context[1] || `${item.summary} The texture matters, not only the conclusion.`,
+    item.context[2] ||
+      `The teaching does not stay in the head. It walks into the kitchen, the conversation, the long afternoon.`,
+    anchorParagraph(item),
+    `The story turns here. ${item.deepening}`,
+    `So if this story were yours for today, the practice would be quiet and concrete. ${item.practice}`,
+    `That is the moral, told without moralising. ${item.takeaway}`,
+    `And the question the story leaves on the table: ${item.reflection}`,
+  ].join("\n\n");
+}
+
+function buildQuizScript(item: TroveItem) {
+  return [
+    `A short reflection before a gentle question. ${item.title}.`,
+    `The simple shape of the teaching is this: ${item.keyLine}`,
+    `${item.summary} ${item.context[0]}`,
+    `Here is the more demanding angle, the part that the question will turn on. ${item.deepening}`,
+    `Hold that lightly. We will ask one question on the next screen — not a test, just an invitation to notice what the teaching is asking of us.`,
   ].join("\n\n");
 }
 

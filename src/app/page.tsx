@@ -25,6 +25,7 @@ import {
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import AmbientPlayer from "@/components/AmbientPlayer";
 import { allCuratedTopics } from "@/lib/trove";
 import type {
   LessonSession,
@@ -379,6 +380,8 @@ export default function Home() {
 
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
+      const providerHeader = response.headers.get("X-Two-Paths-Provider");
+      const provider: "xai" | "gemini" = providerHeader === "gemini" ? "gemini" : "xai";
       audioObjectUrlsRef.current.push(audioUrl);
       pendingAudioAutoplayRef.current = autoPlay;
       setAudioSources((current) => ({ ...current, [kind]: audioUrl }));
@@ -389,14 +392,14 @@ export default function Home() {
               audioUrl: kind === "main" ? audioUrl : current.audioUrl,
               audioAvailable: true,
               voiceId,
-              narrationProvider: "xai",
+              narrationProvider: provider,
             }
           : current,
       );
     } catch {
       pendingAudioAutoplayRef.current = false;
       setNarrationError(
-        "Grok voice is not available right now, so this will use the browser voice.",
+        "The warm voice isn't available right now — using the browser voice instead.",
       );
       setLesson((current) =>
         current?.id === targetLesson.id
@@ -542,6 +545,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <AmbientPlayer />
       <div className="surface">
         {screen === "home" && (
           <HomeScreen
@@ -794,17 +798,13 @@ function TopicsScreen({
       </div>
 
       <footer className="topics-square-footer">
-        <button className="large-button primary-gold" onClick={onRefresh}>
-          <RefreshCw aria-hidden size={26} />
-          Different choices
+        <button className="large-button secondary-light" onClick={onBack}>
+          <ArrowLeft aria-hidden size={26} />
+          Back
         </button>
         <button className="large-button primary-bridge" onClick={onShuffle}>
           <Sparkles aria-hidden size={26} />
           Shuffle
-        </button>
-        <button className="large-button secondary-light" onClick={onBack}>
-          <ArrowLeft aria-hidden size={26} />
-          Back
         </button>
       </footer>
 
@@ -1042,123 +1042,154 @@ function LessonScreen({
   onQuestion: () => void;
   onFinish: () => void;
 }) {
+  const ready = Boolean(lesson);
+  const audioReady = Boolean(lesson?.audioAvailable);
+
   return (
-    <section className="sacred-panel rounded-[18px] p-6">
-      <button className="large-button secondary-light" onClick={onBack}>
-        <ArrowLeft aria-hidden size={28} />
-        Back to topics
-      </button>
-
-      <div className="mx-auto mt-5 max-w-5xl">
-        <div className="mb-3 flex justify-center">
-          <span className="rounded-full bg-white/70 px-5 py-3 font-sans text-[22px] font-bold text-[var(--navy)] shadow-sm">
-            {modeLabel(mode)}
-          </span>
+    <section className="lesson-square" aria-label="Today's reflection">
+      <header className="lesson-square-header">
+        <button className="large-button secondary-light lesson-back" onClick={onBack}>
+          <ArrowLeft aria-hidden size={22} />
+          Back
+        </button>
+        <div className="lesson-square-titleblock">
+          <span className="lesson-square-mode">{modeLabel(mode)}</span>
+          <h1 className="lesson-square-title">
+            {lesson?.title || topic?.title || "Preparing today's reflection…"}
+          </h1>
         </div>
-        <h1 className="text-center text-[48px] font-bold leading-tight text-[var(--navy)]">
-          {lesson?.title || topic?.title || "Preparing today's lesson"}
-        </h1>
+        <div className="lesson-square-spacer" aria-hidden />
+      </header>
 
+      {error && (
+        <div className="lesson-tile lesson-error">
+          {error}
+        </div>
+      )}
+
+      <div className="lesson-square-body">
         <div
-          className="lesson-art mt-7 flex items-center justify-center"
+          className="lesson-tile lesson-hero"
           data-has-image={Boolean(topic?.imageUrl)}
         >
           {topic?.imageUrl && (
-            <img src={topic.imageUrl} alt="" className="lesson-art-image" />
+            <img src={topic.imageUrl} alt="" className="lesson-hero-image" />
           )}
-          {isLoading || isLoadingAudio ? (
-            <RefreshCw className="relative z-10 animate-spin text-[var(--gold)]" size={66} />
-          ) : (
+          <div className="lesson-hero-overlay">
             <button
-              className="large-button primary-navy relative z-10 min-h-[104px] min-w-[104px] rounded-full"
+              className="lesson-play"
               onClick={isPlaying ? onPause : onPlay}
+              disabled={isLoading}
+              aria-label={isPlaying ? "Pause narration" : "Play narration"}
             >
-              {isPlaying ? <Pause aria-hidden size={44} /> : <Play aria-hidden size={44} />}
-              {isPlaying ? "Pause" : "Listen"}
+              {isLoadingAudio ? (
+                <RefreshCw aria-hidden className="animate-spin" size={32} />
+              ) : isPlaying ? (
+                <Pause aria-hidden size={36} />
+              ) : (
+                <Play aria-hidden size={36} />
+              )}
+              <span>
+                {isLoadingAudio
+                  ? "Voice arriving…"
+                  : isPlaying
+                    ? "Pause"
+                    : audioReady
+                      ? "Listen"
+                      : "Read along"}
+              </span>
             </button>
-          )}
+            <span className="lesson-hero-voice">
+              {audioReady
+                ? `${providerLabel(lesson?.narrationProvider)} · ${voiceLabel(lesson?.voiceId || voiceId)}`
+                : isLoadingAudio
+                  ? `Preparing ${voiceLabel(voiceId)}…`
+                  : ready
+                    ? "Press play when ready"
+                    : "Loading…"}
+            </span>
+          </div>
         </div>
 
-        {error && (
-          <div className="mt-6 rounded-[16px] bg-[#fff1e8] p-6 font-sans text-[24px]">
-            {error}
-          </div>
-        )}
-
-        {narrationError && (
-          <div className="mt-6 rounded-[16px] bg-[#fff7d8] p-6 font-sans text-[24px]">
-            {narrationError}
-          </div>
-        )}
-
-        {isLoading && (
-          <p className="mt-6 text-center font-sans text-[26px]">
-            Preparing the words.
-          </p>
-        )}
-
-        {!isLoading && isLoadingAudio && (
-          <p className="mt-6 text-center font-sans text-[26px]">
-            Preparing Grok narration with {voiceLabel(voiceId)}.
-          </p>
-        )}
-
-        {lesson && (
-          <>
-            <p className="mt-5 text-center font-sans text-[21px] font-bold text-[var(--sage)]">
-              {lesson.audioAvailable
-                ? `Grok voice ready: ${voiceLabel(lesson.voiceId || voiceId)}`
-                : `Voice preference: ${voiceLabel(voiceId)}`}
-            </p>
-
-            {showTranscript && (
-              <div className="mt-6 rounded-[14px] border border-[rgba(0,29,61,0.12)] bg-white/60 p-7 shadow-sm">
-                <div className="mb-4 flex flex-wrap items-center gap-3 font-sans text-[21px] font-bold text-[var(--sage)]">
-                  <BookOpen aria-hidden size={26} />
-                  {showSimplified ? "Simpler version" : "Transcript"}
-                </div>
-                <p className="whitespace-pre-line font-sans text-[25px] leading-relaxed">
-                  {currentScript}
-                </p>
+        <div className="lesson-closing-stack">
+          {ready ? (
+            <>
+              <div className="lesson-tile lesson-closing-tile">
+                <span className="lesson-closing-label">
+                  <Leaf aria-hidden size={20} /> Takeaway
+                </span>
+                <p>{lesson!.closing.takeaway}</p>
               </div>
-            )}
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <ClosingItem icon={<Leaf aria-hidden size={30} />} text={lesson.closing.takeaway} />
-              <ClosingItem
-                icon={<CircleHelp aria-hidden size={30} />}
-                text={lesson.closing.reflection}
-              />
-              <ClosingItem icon={<Heart aria-hidden size={30} />} text={lesson.closing.line} />
+              <div className="lesson-tile lesson-closing-tile">
+                <span className="lesson-closing-label">
+                  <CircleHelp aria-hidden size={20} /> Reflection
+                </span>
+                <p>{lesson!.closing.reflection}</p>
+              </div>
+              <div className="lesson-tile lesson-closing-tile">
+                <span className="lesson-closing-label">
+                  <Heart aria-hidden size={20} /> Closing
+                </span>
+                <p>{lesson!.closing.line}</p>
+              </div>
+            </>
+          ) : (
+            <div className="lesson-tile lesson-closing-tile lesson-skeleton">
+              Gathering today's reflection…
             </div>
-
-            <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <button className="large-button secondary-light" onClick={onRepeat}>
-                <RotateCcw aria-hidden size={28} />
-                Repeat that
-              </button>
-              <button className="large-button secondary-light" onClick={onSimplify}>
-                <Leaf aria-hidden size={28} />
-                Make it simpler
-              </button>
-              <button className="large-button secondary-light" onClick={onQuestion}>
-                <CircleHelp aria-hidden size={28} />
-                Ask me a question
-              </button>
-              <button className="large-button primary-navy" onClick={isPlaying ? onPause : onPlay}>
-                {isPlaying ? <Pause aria-hidden size={28} /> : <Play aria-hidden size={28} />}
-                {isPlaying ? "Pause" : "Continue"}
-              </button>
-              <button className="large-button primary-gold" onClick={onFinish}>
-                <X aria-hidden size={28} />
-                Finish for today
-              </button>
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
+
+      {ready && showTranscript && (
+        <div className="lesson-tile lesson-transcript">
+          <div className="lesson-transcript-head">
+            <BookOpen aria-hidden size={22} />
+            {showSimplified ? "Simpler version" : "Transcript"}
+          </div>
+          <p className="lesson-transcript-body">{currentScript}</p>
+        </div>
+      )}
+
+      {narrationError && (
+        <div className="lesson-tile lesson-warn">
+          {narrationError}
+        </div>
+      )}
+
+      {ready && (
+        <footer className="lesson-square-actions">
+          <button className="large-button secondary-light" onClick={onRepeat}>
+            <RotateCcw aria-hidden size={22} />
+            Repeat
+          </button>
+          <button className="large-button secondary-light" onClick={onSimplify}>
+            <Leaf aria-hidden size={22} />
+            Simpler
+          </button>
+          <button className="large-button secondary-light" onClick={onQuestion}>
+            <CircleHelp aria-hidden size={22} />
+            Question
+          </button>
+          <button className="large-button primary-navy" onClick={isPlaying ? onPause : onPlay}>
+            {isPlaying ? <Pause aria-hidden size={22} /> : <Play aria-hidden size={22} />}
+            {isPlaying ? "Pause" : "Continue"}
+          </button>
+          <button className="large-button primary-gold" onClick={onFinish}>
+            <X aria-hidden size={22} />
+            Finish
+          </button>
+        </footer>
+      )}
     </section>
   );
+}
+
+function providerLabel(provider?: "xai" | "gemini" | "browser") {
+  if (provider === "xai") return "Grok";
+  if (provider === "gemini") return "Gemini";
+  if (provider === "browser") return "Browser";
+  return "Voice";
 }
 
 function QuestionScreen({

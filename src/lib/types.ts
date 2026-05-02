@@ -69,7 +69,7 @@ export type LessonSession = {
   audioUrl: string | null;
   audioAvailable: boolean;
   voiceId?: VoiceId;
-  narrationProvider?: "xai" | "browser";
+  narrationProvider?: "xai" | "gemini" | "browser";
   persisted: boolean;
   generatedBy: "gemini" | "fallback" | "trove";
 };
