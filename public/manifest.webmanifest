@@ -1,0 +1,9 @@
+{
+  "name": "Two Paths",
+  "short_name": "Two Paths",
+  "description": "Daily audio-led spiritual reflections.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff9ee",
+  "theme_color": "#001d3d"
+}
