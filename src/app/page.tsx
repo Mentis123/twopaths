@@ -25,6 +25,7 @@ import {
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { allCuratedTopics } from "@/lib/trove";
 import type {
   LessonSession,
   SessionMode,
@@ -34,7 +35,7 @@ import type {
   VoiceId,
 } from "@/lib/types";
 
-type Screen = "home" | "topics" | "lesson" | "question" | "settings";
+type Screen = "home" | "topics" | "lesson" | "question" | "settings" | "library";
 type SpeechSpeed = "slower" | "normal" | "faster";
 
 type RecentSession = {
@@ -125,6 +126,7 @@ export default function Home() {
   const [audioSources, setAudioSources] = useState<Partial<Record<AudioKind, string>>>({});
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [narrationError, setNarrationError] = useState<string | null>(null);
+  const [previewingTopicId, setPreviewingTopicId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -424,6 +426,32 @@ export default function Home() {
     setIsPlaying(false);
   }
 
+  function previewTopic(topic: Topic) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    if (previewingTopicId === topic.id) {
+      window.speechSynthesis.cancel();
+      setPreviewingTopicId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const parts = [topic.title];
+    if (topic.cluster) parts.push(topic.cluster);
+    parts.push(topic.summary);
+    if (topic.keyLine) parts.push(topic.keyLine);
+    const utterance = new SpeechSynthesisUtterance(parts.join(". "));
+    utterance.rate =
+      speechSpeed === "slower" ? 0.78 : speechSpeed === "faster" ? 1.08 : 0.9;
+    utterance.pitch = 0.95;
+    utterance.onend = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
+    utterance.onerror = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
+    window.speechSynthesis.speak(utterance);
+    setPreviewingTopicId(topic.id);
+  }
+
   function playBrowserSpeech(text = currentScript) {
     if (!text) {
       return;
@@ -523,6 +551,14 @@ export default function Home() {
               loadHistory();
               setScreen("settings");
             }}
+            onLibrary={() => setScreen("library")}
+          />
+        )}
+
+        {screen === "library" && (
+          <LibraryScreen
+            onBack={() => setScreen("home")}
+            onChooseTopic={(topic) => chooseTopic(topic, false)}
           />
         )}
 
@@ -538,7 +574,10 @@ export default function Home() {
             setMode={setMode}
             onBack={() => setScreen("home")}
             onRefresh={() => loadTopics(tradition, { fresh: true })}
+            onShuffle={surpriseMe}
             onChooseTopic={chooseTopic}
+            onPreview={previewTopic}
+            previewingTopicId={previewingTopicId}
           />
         )}
 
@@ -614,10 +653,12 @@ function HomeScreen({
   onChoose,
   onSurprise,
   onSettings,
+  onLibrary,
 }: {
   onChoose: (tradition: Tradition) => void;
   onSurprise: () => void;
   onSettings: () => void;
+  onLibrary: () => void;
 }) {
   return (
     <section className="landing-panel" aria-label="Two Paths home">
@@ -633,15 +674,15 @@ function HomeScreen({
         />
         <button
           className="landing-hotspot landing-hotspot-menu"
-          onClick={onSettings}
-          aria-label="Open menu"
-          title="Open menu"
+          onClick={onLibrary}
+          aria-label="Browse the library of reflections"
+          title="Library"
         />
         <button
           className="landing-hotspot landing-hotspot-settings"
           onClick={onSettings}
           aria-label="Open settings"
-          title="Open settings"
+          title="Settings"
         />
         <button
           className="landing-hotspot landing-hotspot-judaism"
@@ -686,7 +727,10 @@ function TopicsScreen({
   setMode,
   onBack,
   onRefresh,
+  onShuffle,
   onChooseTopic,
+  onPreview,
+  previewingTopicId,
 }: {
   tradition: Tradition;
   topics: Topic[];
@@ -698,8 +742,190 @@ function TopicsScreen({
   setMode: (mode: SessionMode) => void;
   onBack: () => void;
   onRefresh: () => void;
+  onShuffle: () => void;
   onChooseTopic: (topic: Topic, autoStart?: boolean) => void;
+  onPreview: (topic: Topic) => void;
+  previewingTopicId: string | null;
 }) {
+  return (
+    <section className="topics-square" aria-label={`${pathLabel(tradition)} reflections for today`}>
+      <header className="topics-square-header">
+        <div className="topics-square-pathmark">
+          <PathMark tradition={tradition} />
+        </div>
+        <div className="topics-square-modes">
+          {modes.map((item) => (
+            <button
+              key={item.id}
+              className="segmented-choice"
+              data-active={mode === item.id}
+              onClick={() => setMode(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div className="topics-square-grid">
+        {isLoading ? (
+          <div className="topics-square-state">
+            <RefreshCw className="animate-spin text-[var(--gold-deep)]" size={56} />
+            <p className="font-sans text-[22px] text-[var(--navy)]">
+              Gathering today&apos;s reflections&hellip;
+            </p>
+          </div>
+        ) : error ? (
+          <div className="topics-square-state">
+            <p className="rounded-[14px] bg-[#fff1e8] p-5 font-sans text-[20px]">{error}</p>
+          </div>
+        ) : (
+          topics.slice(0, 4).map((topic) => (
+            <TopicTile
+              key={topic.id}
+              topic={topic}
+              tradition={tradition}
+              isPreviewing={previewingTopicId === topic.id}
+              onChoose={() => onChooseTopic(topic, false)}
+              onPreview={() => onPreview(topic)}
+            />
+          ))
+        )}
+      </div>
+
+      <footer className="topics-square-footer">
+        <button className="large-button primary-gold" onClick={onRefresh}>
+          <RefreshCw aria-hidden size={26} />
+          Different choices
+        </button>
+        <button className="large-button primary-bridge" onClick={onShuffle}>
+          <Sparkles aria-hidden size={26} />
+          Shuffle
+        </button>
+        <button className="large-button secondary-light" onClick={onBack}>
+          <ArrowLeft aria-hidden size={26} />
+          Back
+        </button>
+      </footer>
+
+      {!isLoading && topics.length > 0 && (
+        <p className="topics-square-source">
+          {topicSource === "trove"
+            ? "Researched trove reflections"
+            : topicSource === "gemini"
+              ? "Fresh reflections"
+              : "Gentle starter reflections"}
+          {persisted ? " · saved" : ""}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function TopicTile({
+  topic,
+  tradition,
+  isPreviewing,
+  onChoose,
+  onPreview,
+}: {
+  topic: Topic;
+  tradition: Tradition;
+  isPreviewing: boolean;
+  onChoose: () => void;
+  onPreview: () => void;
+}) {
+  return (
+    <div
+      className="topic-tile"
+      data-tradition={tradition}
+      role="button"
+      tabIndex={0}
+      onClick={onChoose}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onChoose();
+        }
+      }}
+      aria-label={`Open ${topic.title}`}
+    >
+      <h2 className="topic-tile-title">{topic.title}</h2>
+      <div className="topic-tile-image">
+        {topic.imageUrl ? (
+          <img src={topic.imageUrl} alt="" loading="lazy" />
+        ) : (
+          <TopicIcon topic={topic} />
+        )}
+      </div>
+      <div className="topic-tile-details">
+        {topic.cluster && (
+          <span className="topic-tile-cluster">{topic.cluster}</span>
+        )}
+        <p className="topic-tile-summary">{topic.summary}</p>
+      </div>
+      <button
+        type="button"
+        className="topic-tile-speaker"
+        data-active={isPreviewing}
+        onClick={(event) => {
+          event.stopPropagation();
+          onPreview();
+        }}
+        onKeyDown={(event) => event.stopPropagation()}
+        aria-label={
+          isPreviewing
+            ? `Stop preview of ${topic.title}`
+            : `Listen to a short preview of ${topic.title}`
+        }
+        title={isPreviewing ? "Stop preview" : "Hear preview"}
+      >
+        {isPreviewing ? <Pause aria-hidden size={18} /> : <Volume2 aria-hidden size={18} />}
+      </button>
+    </div>
+  );
+}
+
+function LibraryScreen({
+  onBack,
+  onChooseTopic,
+}: {
+  onBack: () => void;
+  onChooseTopic: (topic: Topic) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | Tradition>("all");
+  const all = useMemo(() => allCuratedTopics(), []);
+  const filtered = useMemo(
+    () => (filter === "all" ? all : all.filter((t) => t.tradition === filter)),
+    [all, filter],
+  );
+
+  // Group by cluster within tradition order
+  const grouped = useMemo(() => {
+    const map = new Map<string, { tradition: Tradition; cluster: string; topics: Topic[] }>();
+    for (const topic of filtered) {
+      const cluster = topic.cluster || "Other reflections";
+      const key = `${topic.tradition}::${cluster}`;
+      const entry = map.get(key);
+      if (entry) {
+        entry.topics.push(topic);
+      } else {
+        map.set(key, { tradition: topic.tradition, cluster, topics: [topic] });
+      }
+    }
+    return Array.from(map.values());
+  }, [filtered]);
+
+  const counts = useMemo(
+    () => ({
+      all: all.length,
+      judaism: all.filter((t) => t.tradition === "judaism").length,
+      buddhism: all.filter((t) => t.tradition === "buddhism").length,
+      both: all.filter((t) => t.tradition === "both").length,
+    }),
+    [all],
+  );
+
   return (
     <section className="sacred-panel rounded-[18px] p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -707,122 +933,70 @@ function TopicsScreen({
           <ArrowLeft aria-hidden size={28} />
           Back to Two Paths
         </button>
-        <PathMark tradition={tradition} />
+        <BookOpen aria-hidden className="text-[var(--navy)]" size={42} />
       </div>
 
-      <div className="mx-auto mt-6 max-w-4xl text-center">
+      <div className="mx-auto mt-4 max-w-4xl text-center">
         <h1 className="text-[44px] font-bold leading-tight text-[var(--navy)]">
-          {pathLabel(tradition)} &mdash; Today&apos;s reflections
+          The library
         </h1>
-        <p className="mt-2 font-sans text-[24px] text-[var(--ink)]">
-          Choose a topic to explore and listen.
+        <p className="mt-2 font-sans text-[22px] text-[var(--ink)]">
+          Every reflection in the trove. Tap any one to listen.
         </p>
       </div>
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        {modes.map((item) => (
+        {(
+          [
+            ["all", `All (${counts.all})`],
+            ["judaism", `Judaism (${counts.judaism})`],
+            ["buddhism", `Buddhism (${counts.buddhism})`],
+            ["both", `Both (${counts.both})`],
+          ] as const
+        ).map(([key, label]) => (
           <button
-            key={item.id}
+            key={key}
             className="segmented-choice"
-            data-active={mode === item.id}
-            onClick={() => setMode(item.id)}
+            data-active={filter === key}
+            onClick={() => setFilter(key as "all" | Tradition)}
           >
-            {item.label}
+            {label}
           </button>
         ))}
       </div>
 
-      {isLoading && (
-        <div className="mx-auto mt-10 max-w-xl rounded-[16px] bg-white/70 p-8 text-center shadow">
-          <RefreshCw className="mx-auto animate-spin text-[var(--gold-deep)]" size={44} />
-          <p className="mt-4 font-sans text-[25px]">
-            Gathering today&apos;s reflections...
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <div className="mx-auto mt-8 max-w-xl rounded-[16px] bg-[#fff1e8] p-6 font-sans text-[24px]">
-          {error}
-        </div>
-      )}
-
-      {!isLoading && topics.length > 0 && (
-        <>
-          <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {topics.map((topic) => (
-              <article key={topic.id} className="topic-card flex flex-col">
-                <div className="topic-visual" data-tradition={tradition}>
-                  {topic.imageUrl ? (
-                    <img
-                      src={topic.imageUrl}
-                      alt=""
-                      className="topic-visual-image"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <TopicIcon topic={topic} />
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <h2 className="text-[28px] font-bold leading-tight text-[var(--navy)]">
-                    {topic.title}
-                  </h2>
-                  {topic.cluster && (
-                    <p className="mt-2 font-sans text-[16px] font-bold uppercase tracking-[0.12em] text-[var(--clay)]">
-                      {topic.cluster}
-                    </p>
-                  )}
-                  <p className="mt-3 flex-1 font-sans text-[21px] leading-snug">
-                    {topic.summary}
-                  </p>
-                  {topic.keyLine && (
-                    <p className="topic-keyline mt-4 font-sans text-[19px] leading-snug">
-                      {topic.keyLine}
-                    </p>
-                  )}
-                  <div className="mt-5 grid gap-3">
-                    <button
-                      className="large-button secondary-light w-full"
-                      onClick={() => onChooseTopic(topic, true)}
-                    >
-                      <Volume2 aria-hidden size={28} />
-                      Listen now
-                    </button>
-                    <button
-                      className={`large-button w-full ${primaryPathClass(tradition)}`}
-                      onClick={() => onChooseTopic(topic, false)}
-                    >
-                      <Check aria-hidden size={28} />
-                      Choose this
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
+      <div className="mt-8 grid gap-7">
+        {grouped.map((group) => (
+          <div key={`${group.tradition}::${group.cluster}`} className="library-cluster">
+            <div className="library-cluster-head">
+              <span className="library-cluster-tradition">
+                {pathLabel(group.tradition)}
+              </span>
+              <h2 className="library-cluster-title">{group.cluster}</h2>
+            </div>
+            <ul className="library-cluster-list">
+              {group.topics.map((topic) => (
+                <li key={topic.id}>
+                  <button
+                    type="button"
+                    className="library-row"
+                    onClick={() => onChooseTopic(topic)}
+                  >
+                    <span className="library-row-image">
+                      {topic.imageUrl && <img src={topic.imageUrl} alt="" loading="lazy" />}
+                    </span>
+                    <span className="library-row-text">
+                      <span className="library-row-title">{topic.title}</span>
+                      <span className="library-row-summary">{topic.summary}</span>
+                    </span>
+                    <Play aria-hidden size={26} className="library-row-icon" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <button className="large-button primary-gold" onClick={onRefresh}>
-              <RefreshCw aria-hidden size={28} />
-              Show me different choices
-            </button>
-            <button className="large-button secondary-light" onClick={onBack}>
-              <ArrowLeft aria-hidden size={28} />
-              Back to Two Paths
-            </button>
-          </div>
-
-          <p className="mt-5 text-center font-sans text-[20px] text-[var(--sage)]">
-            {topicSource === "trove"
-              ? "Researched trove reflections"
-              : topicSource === "gemini"
-                ? "Fresh reflections"
-                : "Gentle starter reflections"}
-            {persisted ? " saved for history." : "."}
-          </p>
-        </>
-      )}
+        ))}
+      </div>
     </section>
   );
 }
