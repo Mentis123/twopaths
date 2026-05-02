@@ -25,6 +25,7 @@ type StoredState = {
   liked?: string[];
   disliked?: string[];
   volume?: number;
+  volumeRange?: "0-1";
 };
 
 type AmbientContextValue = {
@@ -57,8 +58,9 @@ type AmbientContextValue = {
 };
 
 const STORAGE_KEY = "two-paths-ambient-state";
-const MAX_VOLUME = 0.5; // half of audio element max — keeps ambient under TTS narration
-const DEFAULT_VOLUME = 0.25; // middle of the new range
+const MAX_VOLUME = 1; // master volume slider, 0–1
+const AMBIENT_SCALE = 0.5; // ambient music plays at half master so it sits under narration
+const DEFAULT_VOLUME = 0.7; // sensible default master level
 const RECENT_HISTORY = 3;
 
 const Context = createContext<AmbientContextValue | null>(null);
@@ -104,7 +106,7 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     if (audioRef.current) return;
     audioRef.current = new Audio();
     audioRef.current.preload = "auto";
-    audioRef.current.volume = DEFAULT_VOLUME;
+    audioRef.current.volume = DEFAULT_VOLUME * AMBIENT_SCALE;
   }, []);
 
   // Hydrate from localStorage once
@@ -115,7 +117,9 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     if (Array.isArray(stored.liked)) setLiked(stored.liked.filter((id) => typeof id === "string"));
     if (Array.isArray(stored.disliked)) setDisliked(stored.disliked.filter((id) => typeof id === "string"));
     if (typeof stored.volume === "number" && stored.volume >= 0) {
-      setVolumeState(Math.min(MAX_VOLUME, stored.volume));
+      // Migrate old 0–0.5 range to new 0–1 master range
+      const v = stored.volumeRange === "0-1" ? stored.volume : stored.volume * 2;
+      setVolumeState(Math.min(MAX_VOLUME, v));
     }
     setHydrated(true);
   }, []);
@@ -123,14 +127,14 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
   // Persist
   useEffect(() => {
     if (!hydrated) return;
-    writeState({ enabled, mode, liked, disliked, volume });
+    writeState({ enabled, mode, liked, disliked, volume, volumeRange: "0-1" });
   }, [hydrated, enabled, mode, liked, disliked, volume]);
 
-  // Apply volume to audio element
+  // Apply volume to ambient audio (scaled so it sits under narration)
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = volume;
+    audio.volume = Math.min(1, volume * AMBIENT_SCALE);
   }, [volume]);
 
   // Load track list

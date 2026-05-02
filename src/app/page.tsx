@@ -99,6 +99,15 @@ function readCaregiverPreferences(): CaregiverPreferences {
 }
 
 export default function Home() {
+  return (
+    <AmbientPlayerProvider>
+      <HomeInner />
+    </AmbientPlayerProvider>
+  );
+}
+
+function HomeInner() {
+  const { volume } = useAmbientPlayer();
   const [screen, setScreen] = useState<Screen>("home");
   const [tradition, setTradition] = useState<Tradition | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -159,6 +168,14 @@ export default function Home() {
     };
   }, []);
 
+  const volumeRef = useRef(volume);
+  useEffect(() => {
+    volumeRef.current = volume;
+    if (audioRef.current) audioRef.current.volume = volume;
+    if (previewAudioRef.current) previewAudioRef.current.volume = volume;
+    if (utteranceRef.current) utteranceRef.current.volume = volume;
+  }, [volume]);
+
   useEffect(() => {
     audioRef.current?.pause();
     audioRef.current = null;
@@ -168,6 +185,7 @@ export default function Home() {
     }
 
     const audio = new Audio(activeAudioUrl);
+    audio.volume = volumeRef.current;
     audio.onended = () => setIsPlaying(false);
     audio.onpause = () => setIsPlaying(false);
     audio.onplay = () => setIsPlaying(true);
@@ -523,6 +541,7 @@ export default function Home() {
     // Try the pre-built warm preview first (Ara). Falls back to browser TTS.
     const url = `/audio/previews/${topic.id}.mp3`;
     const audio = new Audio(url);
+    audio.volume = volumeRef.current;
     audio.onended = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
     audio.onerror = () => {
       previewAudioRef.current = null;
@@ -540,6 +559,7 @@ export default function Home() {
     window.speechSynthesis?.cancel();
     if (audioUrl) {
       const audio = new Audio(audioUrl);
+      audio.volume = volumeRef.current;
       audio.onerror = () => {
         // Fall back to browser TTS if the prebuilt MP3 is missing
         playBrowserSpeech(text);
@@ -564,6 +584,7 @@ export default function Home() {
     utterance.rate =
       speechSpeed === "slower" ? 0.78 : speechSpeed === "faster" ? 1.08 : 0.92;
     utterance.pitch = 0.95;
+    utterance.volume = volumeRef.current;
     utterance.onend = () => setIsPlaying(false);
     utterance.onerror = () => setIsPlaying(false);
     utteranceRef.current = utterance;
@@ -643,7 +664,6 @@ export default function Home() {
   );
 
   return (
-    <AmbientPlayerProvider>
     <main className="app-shell">
       <AmbientPlayer />
       <div className="surface">
@@ -756,7 +776,6 @@ export default function Home() {
         )}
       </div>
     </main>
-    </AmbientPlayerProvider>
   );
 }
 
