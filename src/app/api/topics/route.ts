@@ -42,6 +42,10 @@ export async function POST(request: Request) {
 
   const generated = await generateJson<GeneratedTopics>(
     topicsPrompt(body.tradition, dateLabel),
+    {
+      maxOutputTokens: 700,
+      timeoutMs: 5000,
+    },
   );
 
   const geminiTopics = normalizeTopics(generated, body.tradition);

@@ -6,8 +6,8 @@ Two Paths is a calm, audio-led spiritual learning app for daily reflections acro
 
 - Split-symbol landing page for choosing Judaism or Buddhism.
 - 4 daily topic cards generated through Gemini, with starter fallback topics when no key is configured.
-- Short narrated lesson generation with Gemini TTS when `GEMINI_API_KEY` is present.
-- Browser speech fallback for local demos without an API key.
+- Fast lesson generation with browser speech for immediate narration.
+- Optional Gemini TTS helper code is available, but the lesson API does not block on TTS.
 - Gentle multiple-choice question, simpler explanation, repeat, pause, and finish controls.
 - Optional Neon Postgres persistence for topics, sessions, preferences, and favourites.
 
@@ -23,8 +23,8 @@ Optional:
 
 ```bash
 DATABASE_URL=your_neon_pooled_connection_string
-GEMINI_TEXT_MODEL=gemini-3-flash-preview
-GEMINI_TTS_MODEL=gemini-3.1-flash-tts-preview
+GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
+GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 ```
 
 Do not prefix the Gemini key with `NEXT_PUBLIC_`; the app only reads it inside server route handlers.

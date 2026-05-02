@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { fallbackLesson } from "@/lib/fallbacks";
-import { generateJson, isGeminiConfigured, synthesizeNarration } from "@/lib/gemini";
+import { generateJson, isGeminiConfigured } from "@/lib/gemini";
 import { saveSession } from "@/lib/db";
 import { lessonPrompt } from "@/lib/prompts";
 import type {
@@ -11,7 +11,7 @@ import type {
   Tradition,
 } from "@/lib/types";
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 
 type GeneratedLesson = {
   title?: string;
@@ -75,6 +75,10 @@ export async function POST(request: Request) {
       mode,
       minutes,
     }),
+    {
+      maxOutputTokens: mode === "quiz" ? 1000 : 1300,
+      timeoutMs: 6500,
+    },
   );
 
   const normalized = normalizeLesson({
@@ -85,16 +89,10 @@ export async function POST(request: Request) {
     mode,
   });
 
-  const audioUrl = await synthesizeNarration({
-    script: normalized.script,
-    voiceName: body.voiceName || "Kore",
-    speechSpeed: body.speechSpeed || "normal",
-  });
-
   const withAudio: LessonSession = {
     ...normalized,
-    audioUrl,
-    audioAvailable: Boolean(audioUrl),
+    audioUrl: null,
+    audioAvailable: false,
   };
 
   const persisted = await saveSession({

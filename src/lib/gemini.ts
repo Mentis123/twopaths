@@ -20,29 +20,36 @@ function geminiClient() {
 }
 
 export function textModel() {
-  return process.env.GEMINI_TEXT_MODEL || "gemini-3-flash-preview";
+  return process.env.GEMINI_TEXT_MODEL || "gemini-2.5-flash-lite";
 }
 
 export function ttsModel() {
-  return process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
+  return process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
 }
 
-export async function generateJson<T>(prompt: string): Promise<T | null> {
+export async function generateJson<T>(
+  prompt: string,
+  options: { maxOutputTokens?: number; timeoutMs?: number } = {},
+): Promise<T | null> {
   const client = geminiClient();
 
   if (!client) {
     return null;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs || 7000);
+
   try {
     const response = await client.models.generateContent({
       model: textModel(),
       contents: prompt,
       config: {
+        abortSignal: controller.signal,
         systemInstruction: TWO_PATHS_SYSTEM_PROMPT,
         responseMimeType: "application/json",
-        temperature: 0.68,
-        maxOutputTokens: 2200,
+        temperature: 0.62,
+        maxOutputTokens: options.maxOutputTokens || 1400,
       },
     });
 
@@ -55,6 +62,8 @@ export async function generateJson<T>(prompt: string): Promise<T | null> {
   } catch (error) {
     console.error("Gemini JSON generation failed", error);
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

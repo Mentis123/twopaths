@@ -48,17 +48,25 @@ export function lessonPrompt({
   mode: SessionMode;
   minutes: number;
 }) {
+  const modeInstruction =
+    mode === "story"
+      ? "Make this Story Mode: lead with one memorable teaching story, then draw out the meaning gently. The narration should feel like being told a short parable or historical anecdote."
+      : mode === "quiz"
+        ? "Make this Gentle Quiz mode: use a very short setup, then include one clear question and one hint. Keep the teaching concise so the question feels central but never like a test."
+        : "Make this Listen and Learn mode: offer a clear, direct explainer with a warm opening, one or two key ideas, and a calming close.";
+
   return `
 Create a ${minutes}-minute ${mode} session for the ${tradition} path.
 
 Topic: ${topicTitle}
 Topic summary: ${topicSummary}
+Mode direction: ${modeInstruction}
 
 Return JSON only in this shape:
 {
   "title": "clear session title",
-  "script": "warm narration, 450 to 700 words, in short paragraphs",
-  "simplifiedScript": "same idea in 180 to 260 words, even simpler and calmer",
+  "script": "warm narration, 260 to 380 words, in short paragraphs",
+  "simplifiedScript": "same idea in 120 to 180 words, even simpler and calmer",
   "segments": ["short segment 1", "short segment 2", "short segment 3"],
   "question": {
     "prompt": "gentle multiple choice question",
@@ -78,5 +86,6 @@ Return JSON only in this shape:
 }
 
 The question must not feel like a test and must not mention score, memory, decline, symptoms, or performance.
+The title and script must make the selected mode obvious without using clinical or school-like wording.
 `;
 }

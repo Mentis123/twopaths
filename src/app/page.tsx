@@ -144,7 +144,7 @@ export default function Home() {
     }
   }
 
-  async function chooseTopic(topic: Topic) {
+  async function chooseTopic(topic: Topic, autoStart = false) {
     setSelectedTopic(topic);
     setScreen("lesson");
     setLesson(null);
@@ -175,6 +175,9 @@ export default function Home() {
 
       const data = (await response.json()) as LessonSession;
       setLesson(data);
+      if (autoStart) {
+        playCurrentScript(data.script);
+      }
       loadHistory();
     } catch {
       setError("The lesson did not arrive. Please try this topic again.");
@@ -326,6 +329,7 @@ export default function Home() {
             lesson={lesson}
             isLoading={isLoadingLesson}
             error={error}
+            mode={mode}
             currentScript={currentScript}
             showTranscript={showTranscript}
             showSimplified={showSimplified}
@@ -389,21 +393,18 @@ function HomeScreen({
 }) {
   return (
     <section className="sacred-panel relative overflow-hidden rounded-[18px] bg-[var(--navy)] p-5 text-center">
-      <div className="absolute left-6 top-6 z-10 flex gap-3">
+      <div className="home-actions">
         <button className="large-button icon-pill" aria-label="Menu">
           <Menu aria-hidden size={34} />
           Menu
         </button>
-      </div>
-
-      <div className="absolute right-6 top-6 z-10">
         <button className="large-button icon-pill" onClick={onSettings}>
           <Settings aria-hidden size={34} />
           Settings
         </button>
       </div>
 
-      <div className="py-16">
+      <div className="home-content py-16">
         <p className="mb-4 font-sans text-[24px] font-bold uppercase tracking-[0.18em] text-[var(--gold)]">
           Two Paths
         </p>
@@ -432,7 +433,7 @@ function HomeScreen({
         </div>
 
         <button
-          className="large-button primary-gold mx-auto mt-[-38px] min-h-[82px] px-12 text-[36px]"
+          className="home-surprise large-button primary-gold mx-auto mt-[-38px] min-h-[82px] px-12"
           onClick={onSurprise}
         >
           <Sparkles aria-hidden size={38} />
@@ -469,7 +470,7 @@ function TopicsScreen({
   setMode: (mode: SessionMode) => void;
   onBack: () => void;
   onRefresh: () => void;
-  onChooseTopic: (topic: Topic) => void;
+  onChooseTopic: (topic: Topic, autoStart?: boolean) => void;
 }) {
   return (
     <section className="sacred-panel rounded-[18px] p-6">
@@ -536,16 +537,16 @@ function TopicsScreen({
                   <div className="mt-5 grid gap-3">
                     <button
                       className="large-button secondary-light w-full"
-                      onClick={() => onChooseTopic(topic)}
+                      onClick={() => onChooseTopic(topic, true)}
                     >
                       <Volume2 aria-hidden size={28} />
-                      Listen
+                      Listen now
                     </button>
                     <button
                       className={`large-button w-full ${
                         tradition === "judaism" ? "primary-navy" : "primary-gold"
                       }`}
-                      onClick={() => onChooseTopic(topic)}
+                      onClick={() => onChooseTopic(topic, false)}
                     >
                       <Check aria-hidden size={28} />
                       Choose this
@@ -582,6 +583,7 @@ function LessonScreen({
   lesson,
   isLoading,
   error,
+  mode,
   currentScript,
   showTranscript,
   showSimplified,
@@ -598,6 +600,7 @@ function LessonScreen({
   lesson: LessonSession | null;
   isLoading: boolean;
   error: string | null;
+  mode: SessionMode;
   currentScript: string;
   showTranscript: boolean;
   showSimplified: boolean;
@@ -618,6 +621,11 @@ function LessonScreen({
       </button>
 
       <div className="mx-auto mt-5 max-w-5xl">
+        <div className="mb-3 flex justify-center">
+          <span className="rounded-full bg-white/70 px-5 py-3 font-sans text-[22px] font-bold text-[var(--navy)] shadow-sm">
+            {modeLabel(mode)}
+          </span>
+        </div>
         <h1 className="text-center text-[48px] font-bold leading-tight text-[var(--navy)]">
           {lesson?.title || topic?.title || "Preparing today's lesson"}
         </h1>
@@ -644,7 +652,7 @@ function LessonScreen({
 
         {isLoading && (
           <p className="mt-6 text-center font-sans text-[26px]">
-            Preparing a warm narrated reflection...
+            Preparing the words. The browser voice will be ready right away.
           </p>
         )}
 
@@ -994,4 +1002,8 @@ function TopicIcon({ topic }: { topic: Topic }) {
 
 function titleCase(value: string) {
   return value.slice(0, 1).toUpperCase() + value.slice(1);
+}
+
+function modeLabel(value: SessionMode) {
+  return modes.find((item) => item.id === value)?.label || "Listen and Learn";
 }
