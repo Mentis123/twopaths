@@ -12,11 +12,13 @@ import {
   History,
   Leaf,
   Lightbulb,
+  Music,
   Pause,
   Play,
   RefreshCw,
   RotateCcw,
   Sparkles,
+  ThumbsDown,
   Timer,
   Users,
   Volume2,
@@ -26,6 +28,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import AmbientPlayer from "@/components/AmbientPlayer";
+import { AmbientPlayerProvider, useAmbientPlayer } from "@/components/AmbientPlayerProvider";
 import { allCuratedTopics } from "@/lib/trove";
 import type {
   LessonSession,
@@ -544,6 +547,7 @@ export default function Home() {
   );
 
   return (
+    <AmbientPlayerProvider>
     <main className="app-shell">
       <AmbientPlayer />
       <div className="surface">
@@ -650,6 +654,7 @@ export default function Home() {
         )}
       </div>
     </main>
+    </AmbientPlayerProvider>
   );
 }
 
@@ -893,6 +898,7 @@ function LibraryScreen({
   onBack: () => void;
   onChooseTopic: (topic: Topic) => void;
 }) {
+  const [section, setSection] = useState<"reflections" | "music">("reflections");
   const [filter, setFilter] = useState<"all" | Tradition>("all");
   const all = useMemo(() => allCuratedTopics(), []);
   const filtered = useMemo(
@@ -941,10 +947,30 @@ function LibraryScreen({
           The library
         </h1>
         <p className="mt-2 font-sans text-[22px] text-[var(--ink)]">
-          Every reflection in the trove. Tap any one to listen.
+          {section === "reflections"
+            ? "Every reflection in the trove. Tap any one to listen."
+            : "All the ambient music. Like, dislike, change your mind."}
         </p>
       </div>
 
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <button
+          className="segmented-choice"
+          data-active={section === "reflections"}
+          onClick={() => setSection("reflections")}
+        >
+          <BookOpen aria-hidden size={18} /> Reflections
+        </button>
+        <button
+          className="segmented-choice"
+          data-active={section === "music"}
+          onClick={() => setSection("music")}
+        >
+          <Music aria-hidden size={18} /> Music
+        </button>
+      </div>
+
+      {section === "reflections" && (
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {(
           [
@@ -964,7 +990,9 @@ function LibraryScreen({
           </button>
         ))}
       </div>
+      )}
 
+      {section === "reflections" && (
       <div className="mt-8 grid gap-7">
         {grouped.map((group) => (
           <div key={`${group.tradition}::${group.cluster}`} className="library-cluster">
@@ -997,7 +1025,116 @@ function LibraryScreen({
           </div>
         ))}
       </div>
+      )}
+
+      {section === "music" && <MusicLibrary />}
     </section>
+  );
+}
+
+function MusicLibrary() {
+  const player = useAmbientPlayer();
+  const {
+    tracks,
+    tracksLoaded,
+    currentTrackId,
+    isPlaying,
+    playSpecific,
+    togglePlayPause,
+    like,
+    unlike,
+    dislike,
+    undislike,
+    isLiked,
+    isDisliked,
+    liked,
+    disliked,
+  } = player;
+
+  if (!tracksLoaded) {
+    return (
+      <div className="library-music-empty">
+        <RefreshCw className="animate-spin" size={36} />
+        <p className="font-sans text-[18px]">Tuning the music library&hellip;</p>
+      </div>
+    );
+  }
+
+  if (tracks.length === 0) {
+    return (
+      <div className="library-music-empty">
+        <Music size={36} />
+        <p className="font-sans text-[18px]">
+          No music yet. Drop mp3 files into <code>public/audio/ambient/</code>.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="library-music">
+      <div className="library-music-summary font-sans text-[15px] text-[var(--sage)]">
+        {tracks.length} track{tracks.length === 1 ? "" : "s"} · {liked.length} liked ·{" "}
+        {disliked.length} hidden
+      </div>
+      <ul className="library-music-list">
+        {tracks.map((track) => {
+          const playing = currentTrackId === track.id && isPlaying;
+          const current = currentTrackId === track.id;
+          const liked_ = isLiked(track.id);
+          const disliked_ = isDisliked(track.id);
+          return (
+            <li
+              key={track.id}
+              className="library-music-row"
+              data-current={current}
+              data-disliked={disliked_}
+            >
+              <button
+                type="button"
+                className="library-music-play"
+                onClick={() => {
+                  if (current) togglePlayPause();
+                  else playSpecific(track.id);
+                }}
+                aria-label={
+                  playing ? `Pause ${track.title}` : `Play ${track.title}`
+                }
+              >
+                {playing ? <Pause size={22} /> : <Play size={22} />}
+              </button>
+              <span className="library-music-title">
+                {track.title}
+                {disliked_ && <span className="library-music-tag">Hidden</span>}
+                {liked_ && <span className="library-music-tag library-music-tag-liked">Liked</span>}
+              </span>
+              <div className="library-music-actions">
+                <button
+                  type="button"
+                  className="library-music-icon-btn"
+                  data-active={liked_}
+                  onClick={() => (liked_ ? unlike(track.id) : like(track.id))}
+                  aria-label={liked_ ? `Unlike ${track.title}` : `Like ${track.title}`}
+                  title={liked_ ? "Unlike" : "Like"}
+                >
+                  <Heart size={18} fill={liked_ ? "currentColor" : "none"} />
+                </button>
+                <button
+                  type="button"
+                  className="library-music-icon-btn library-music-dislike"
+                  data-active={disliked_}
+                  onClick={() => (disliked_ ? undislike(track.id) : dislike(track.id))}
+                  aria-label={disliked_ ? `Restore ${track.title}` : `Hide ${track.title}`}
+                  title={disliked_ ? "Restore to rotation" : "Hide from rotation"}
+                >
+                  <ThumbsDown size={18} fill={disliked_ ? "currentColor" : "none"} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
