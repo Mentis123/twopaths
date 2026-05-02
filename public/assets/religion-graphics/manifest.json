@@ -1,7 +1,46 @@
 {
-  "generatedAt": "2026-05-02T20:00:00",
+  "generatedAt": "2026-05-02T20:30:00",
   "basePath": "/assets/religion-graphics",
   "topics": {
+    "judaism": [
+      "/assets/religion-graphics/topics/judaism/alan-lew-teshuvah-unprepared.png",
+      "/assets/religion-graphics/topics/judaism/gillman-sacred-fragments.png",
+      "/assets/religion-graphics/topics/judaism/heschel-prophets-moral-audacity.png",
+      "/assets/religion-graphics/topics/judaism/heschel-sabbath-time.png",
+      "/assets/religion-graphics/topics/judaism/hillel-self-other-now.png",
+      "/assets/religion-graphics/topics/judaism/micah-justice-kindness-humility.png",
+      "/assets/religion-graphics/topics/judaism/michaelson-body-as-practice.png",
+      "/assets/religion-graphics/topics/judaism/morinis-middot-curriculum.png",
+      "/assets/religion-graphics/topics/judaism/shekhinah-presence-exile.png",
+      "/assets/religion-graphics/topics/judaism/tarfon-unfinished-work.png",
+      "/assets/religion-graphics/topics/judaism/zohar-radiance-inner-torah.png"
+    ],
+    "buddhism": [
+      "/assets/religion-graphics/topics/buddhism/basho-attention-haiku.png",
+      "/assets/religion-graphics/topics/buddhism/dhammapada-hatred-love.png",
+      "/assets/religion-graphics/topics/buddhism/four-noble-truths-diagnosis.png",
+      "/assets/religion-graphics/topics/buddhism/green-gulch-work-practice.png",
+      "/assets/religion-graphics/topics/buddhism/guanyin-listening-compassion.png",
+      "/assets/religion-graphics/topics/buddhism/heart-sutra-form-emptiness.png",
+      "/assets/religion-graphics/topics/buddhism/hinton-wild-mind-earth.png",
+      "/assets/religion-graphics/topics/buddhism/ikkyu-iconoclast-authenticity.png",
+      "/assets/religion-graphics/topics/buddhism/loori-eight-gates-training.png",
+      "/assets/religion-graphics/topics/buddhism/rupa-singh-ai-buddhist-ethics.png",
+      "/assets/religion-graphics/topics/buddhism/satipatthana-four-foundations.png"
+    ],
+    "both": [
+      "/assets/religion-graphics/topics/both/both-ai-prophetic-compassion.png",
+      "/assets/religion-graphics/topics/both/both-alan-lew-norman-fischer.png",
+      "/assets/religion-graphics/topics/both/both-body-kabbalah-mindfulness.png",
+      "/assets/religion-graphics/topics/both/both-mussar-paramitas-character.png",
+      "/assets/religion-graphics/topics/both/both-poetry-attention.png",
+      "/assets/religion-graphics/topics/both/both-sabbath-zazen-time-body.png",
+      "/assets/religion-graphics/topics/both/both-shekhinah-guanyin-listening-presence.png",
+      "/assets/religion-graphics/topics/both/both-tikkun-bodhisattva-vow.png",
+      "/assets/religion-graphics/topics/both/both-zohar-koan-hidden.png"
+    ]
+  },
+  "extras": {
     "judaism": [
       "/assets/religion-graphics/judaism/judaism-01.png",
       "/assets/religion-graphics/judaism/judaism-02.png",
@@ -79,17 +118,6 @@
       "/assets/religion-graphics/buddhism/buddhism-35.png",
       "/assets/religion-graphics/buddhism/buddhism-36.png",
       "/assets/religion-graphics/buddhism/buddhism-37.png"
-    ],
-    "both": [
-      "/assets/religion-graphics/both/both-01.png",
-      "/assets/religion-graphics/both/both-02.png",
-      "/assets/religion-graphics/both/both-03.png",
-      "/assets/religion-graphics/both/both-04.png",
-      "/assets/religion-graphics/both/both-05.png",
-      "/assets/religion-graphics/both/both-06.png",
-      "/assets/religion-graphics/both/both-07.png",
-      "/assets/religion-graphics/both/both-08.png",
-      "/assets/religion-graphics/both/both-09.png"
     ]
   },
   "sheets": [

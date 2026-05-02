@@ -1076,16 +1076,12 @@ const trove: TroveItem[] = [
 
 const troveById = new Map(trove.map((item) => [item.id, item]));
 
-const imageById: Map<string, string> = (() => {
-  const map = new Map<string, string>();
-  const counters: Record<Tradition, number> = { judaism: 0, buddhism: 0, both: 0 };
-  for (const item of trove) {
-    counters[item.tradition] += 1;
-    const idx = String(counters[item.tradition]).padStart(2, "0");
-    map.set(item.id, `/assets/religion-graphics/${item.tradition}/${item.tradition}-${idx}.png`);
-  }
-  return map;
-})();
+const imageById: Map<string, string> = new Map(
+  trove.map((item) => [
+    item.id,
+    `/assets/religion-graphics/topics/${item.tradition}/${item.id}.png`,
+  ]),
+);
 
 export function curatedTopics(
   tradition: Tradition,
