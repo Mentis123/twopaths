@@ -1728,71 +1728,10 @@ function SettingsScreen({
 
       <div className="mx-auto mt-4 max-w-4xl text-center">
         <h1 className="text-[46px] font-bold text-[var(--cream)]">Settings</h1>
-        <p className="font-sans text-[24px] text-[var(--cream)]/80">Customize the experience for Dad.</p>
+        <p className="font-sans text-[24px] text-[var(--cream)]/80">Customize the experience for Saba.</p>
       </div>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">
-        <SettingBlock icon={<Timer aria-hidden size={30} />} title="Session length">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[3, 5, 8, 10].map((value) => (
-              <button
-                key={value}
-                className="segmented-choice"
-                data-active={sessionMinutes === value}
-                onClick={() => setSessionMinutes(value)}
-              >
-                {value === 10 ? "10+ min" : `${value} min`}
-              </button>
-            ))}
-          </div>
-        </SettingBlock>
-
-        <SettingBlock icon={<Gauge aria-hidden size={30} />} title="Tradition balance">
-          <div className="grid grid-cols-3 gap-3">
-            {(["judaism", "buddhism", "balanced"] as const).map((value) => (
-              <button
-                key={value}
-                className="segmented-choice"
-                data-active={traditionBias === value}
-                onClick={() => setTraditionBias(value)}
-              >
-                {titleCase(value)}
-              </button>
-            ))}
-          </div>
-        </SettingBlock>
-
-        <SettingBlock icon={<Headphones aria-hidden size={30} />} title="Voice speed">
-          <div className="grid grid-cols-3 gap-3">
-            {(["slower", "normal", "faster"] as const).map((value) => (
-              <button
-                key={value}
-                className="segmented-choice"
-                data-active={speechSpeed === value}
-                onClick={() => setSpeechSpeed(value)}
-              >
-                {titleCase(value)}
-              </button>
-            ))}
-          </div>
-        </SettingBlock>
-
-        <SettingBlock icon={<Volume2 aria-hidden size={30} />} title="Narration voice">
-          <div className="grid gap-3 md:grid-cols-3">
-            {voiceOptions.map((voice) => (
-              <button
-                key={voice.id}
-                className="segmented-choice min-h-[92px] flex-col"
-                data-active={voiceId === voice.id}
-                onClick={() => setVoiceId(voice.id)}
-              >
-                <span>{voice.label}</span>
-                <span className="font-sans text-[18px] font-normal">{voice.tone}</span>
-              </button>
-            ))}
-          </div>
-        </SettingBlock>
-
         <SettingBlock icon={<BookOpen aria-hidden size={30} />} title="Favourite topics">
           <button
             className="large-button secondary-light w-full"
@@ -1802,7 +1741,7 @@ function SettingsScreen({
             {isManagingFavourites ? "Done" : "Manage favourites"}
           </button>
           <p className="mt-4 font-sans text-[21px] text-[var(--sage)]">
-            Pick themes Dad enjoys. We will nudge new topic choices toward these
+            Pick themes Saba enjoys. We will nudge new topic choices toward these
             within Judaism or Buddhism.
           </p>
           {isManagingFavourites && (
@@ -1836,14 +1775,19 @@ function SettingsScreen({
 
         <SettingBlock icon={<History aria-hidden size={30} />} title="Recent activity">
           {recentSessions.length > 0 ? (
-            <div className="grid gap-3">
-              {recentSessions.map((session) => (
-                <p
-                  key={session.id}
-                  className="rounded-[12px] bg-white/60 p-4 font-sans text-[21px]"
-                >
-                  {titleCase(session.tradition)} - {session.topic}
-                </p>
+            <div className="recent-activity-scroll">
+              {recentSessions.slice(0, 10).map((session) => (
+                <div key={session.id} className="recent-activity-row">
+                  <span className="recent-activity-when">
+                    {formatActivityWhen(session.created_at)}
+                  </span>
+                  <span className="recent-activity-text">
+                    <strong>{pathLabel(session.tradition)}</strong>
+                    {" — "}
+                    {session.topic}
+                  </span>
+                  <span className="recent-activity-mode">{titleCase(session.mode)}</span>
+                </div>
               ))}
             </div>
           ) : (
@@ -1958,4 +1902,29 @@ function modeLabel(value: SessionMode) {
 
 function voiceLabel(value: VoiceId) {
   return voiceOptions.find((item) => item.id === value)?.label || "Ara";
+}
+
+function formatActivityWhen(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const today = new Date();
+  const sameDay =
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate();
+  const time = d.toLocaleTimeString("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  if (sameDay) return `Today · ${time}`;
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const sameYesterday =
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate();
+  if (sameYesterday) return `Yesterday · ${time}`;
+  return `${d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })} · ${time}`;
 }

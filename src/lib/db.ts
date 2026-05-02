@@ -161,8 +161,14 @@ export async function ensureSchema() {
 
   await db`
     INSERT INTO users (id, name, preferred_name)
-    VALUES ('dad', 'Dad', 'Dad')
+    VALUES ('dad', 'Saba', 'Saba')
     ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Existing rows from earlier deploys may still say 'Dad'. Migrate.
+  await db`
+    UPDATE users SET name = 'Saba', preferred_name = 'Saba'
+    WHERE id = 'dad' AND preferred_name = 'Dad'
   `;
 
   await db`
@@ -258,7 +264,7 @@ export async function recentSessions(userId = "dad") {
     FROM sessions
     WHERE user_id = ${userId}
     ORDER BY created_at DESC
-    LIMIT 6
+    LIMIT 10
   `;
 
   return rows as Array<{
