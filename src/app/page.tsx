@@ -107,7 +107,8 @@ export default function Home() {
 }
 
 function HomeInner() {
-  const { volume } = useAmbientPlayer();
+  const { volume, connectNarrationAudio, ensureAudioContextRunning } =
+    useAmbientPlayer();
   const [screen, setScreen] = useState<Screen>("home");
   const [tradition, setTradition] = useState<Tradition | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -168,11 +169,12 @@ function HomeInner() {
     };
   }, []);
 
+  // Audio elements are routed through the provider's narration gain node
+  // (so iOS, which ignores HTMLAudioElement.volume, still tracks the
+  // slider). Browser TTS uses a different API and still needs direct sync.
   const volumeRef = useRef(volume);
   useEffect(() => {
     volumeRef.current = volume;
-    if (audioRef.current) audioRef.current.volume = volume;
-    if (previewAudioRef.current) previewAudioRef.current.volume = volume;
     if (utteranceRef.current) utteranceRef.current.volume = volume;
   }, [volume]);
 
@@ -185,7 +187,7 @@ function HomeInner() {
     }
 
     const audio = new Audio(activeAudioUrl);
-    audio.volume = volumeRef.current;
+    if (!connectNarrationAudio(audio)) audio.volume = volumeRef.current;
     audio.onended = () => setIsPlaying(false);
     audio.onpause = () => setIsPlaying(false);
     audio.onplay = () => setIsPlaying(true);
@@ -203,7 +205,7 @@ function HomeInner() {
     return () => {
       audio.pause();
     };
-  }, [activeAudioUrl]);
+  }, [activeAudioUrl, connectNarrationAudio]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -519,6 +521,7 @@ function HomeInner() {
     window.speechSynthesis?.cancel();
 
     setPreviewingTopicId(topic.id);
+    ensureAudioContextRunning();
 
     const fallbackToBrowser = () => {
       if (!("speechSynthesis" in window)) {
@@ -541,7 +544,7 @@ function HomeInner() {
     // Try the pre-built warm preview first (Ara). Falls back to browser TTS.
     const url = `/audio/previews/${topic.id}.mp3`;
     const audio = new Audio(url);
-    audio.volume = volumeRef.current;
+    if (!connectNarrationAudio(audio)) audio.volume = volumeRef.current;
     audio.onended = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
     audio.onerror = () => {
       previewAudioRef.current = null;
@@ -557,9 +560,10 @@ function HomeInner() {
   function speakWithFallback(text: string, audioUrl?: string) {
     // Cancel anything currently speaking
     window.speechSynthesis?.cancel();
+    ensureAudioContextRunning();
     if (audioUrl) {
       const audio = new Audio(audioUrl);
-      audio.volume = volumeRef.current;
+      if (!connectNarrationAudio(audio)) audio.volume = volumeRef.current;
       audio.onerror = () => {
         // Fall back to browser TTS if the prebuilt MP3 is missing
         playBrowserSpeech(text);
@@ -599,6 +603,7 @@ function HomeInner() {
   }
 
   function continueAudio() {
+    ensureAudioContextRunning();
     // Warm voice already loaded → just play it
     if (audioRef.current) {
       audioRef.current.play().catch(() => setIsPlaying(false));
@@ -634,6 +639,7 @@ function HomeInner() {
   }
 
   function repeatCurrent() {
+    ensureAudioContextRunning();
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => setIsPlaying(false));
