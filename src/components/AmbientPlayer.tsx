@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { Heart, Music, Pause, Play, SkipForward, ThumbsDown, Volume2, VolumeX } from "lucide-react";
 import { useAmbientPlayer } from "@/components/AmbientPlayerProvider";
 
 export default function AmbientPlayer() {
   const player = useAmbientPlayer();
+  const lastNonZeroVolumeRef = useRef(0.7);
   const {
     tracks,
     tracksLoaded,
@@ -111,7 +113,14 @@ export default function AmbientPlayer() {
         <button
           type="button"
           className="ambient-player-volume-icon"
-          onClick={() => setVolume(volume > 0 ? 0 : 0.25)}
+          onClick={() => {
+            if (volume > 0) {
+              lastNonZeroVolumeRef.current = volume;
+              setVolume(0);
+            } else {
+              setVolume(lastNonZeroVolumeRef.current || 0.7);
+            }
+          }}
           aria-label={volume > 0 ? "Mute" : "Unmute"}
           title={volume > 0 ? "Mute" : "Unmute"}
         >
@@ -121,10 +130,14 @@ export default function AmbientPlayer() {
           type="range"
           className="ambient-player-slider"
           min={0}
-          max={0.5}
+          max={1}
           step={0.01}
           value={volume}
-          onChange={(e) => setVolume(Number(e.target.value))}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (v > 0) lastNonZeroVolumeRef.current = v;
+            setVolume(v);
+          }}
           aria-label="Volume"
         />
       </div>
