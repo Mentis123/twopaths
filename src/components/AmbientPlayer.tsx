@@ -111,7 +111,7 @@ export default function AmbientPlayer() {
         <button
           type="button"
           className="ambient-player-volume-icon"
-          onClick={() => setVolume(volume > 0 ? 0 : 0.45)}
+          onClick={() => setVolume(volume > 0 ? 0 : 0.25)}
           aria-label={volume > 0 ? "Mute" : "Unmute"}
           title={volume > 0 ? "Mute" : "Unmute"}
         >
@@ -121,7 +121,7 @@ export default function AmbientPlayer() {
           type="range"
           className="ambient-player-slider"
           min={0}
-          max={1}
+          max={0.5}
           step={0.01}
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}

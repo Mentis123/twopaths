@@ -133,6 +133,7 @@ export default function Home() {
   const [previewingTopicId, setPreviewingTopicId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const pendingAudioAutoplayRef = useRef(false);
   const audioObjectUrlsRef = useRef<string[]>([]);
@@ -372,6 +373,33 @@ export default function Home() {
       pendingAudioAutoplayRef.current = true;
     }
 
+    // Try the pre-built warm narration first. If we shipped a static MP3
+    // for this trove item + mode, use it (instant, no API call). Falls
+    // through to /api/voice/tts on 404.
+    if (kind === "main" && targetLesson.topic.researchId) {
+      const prebuiltUrl = `/audio/lessons/${targetLesson.topic.researchId}-${targetLesson.mode}.mp3`;
+      try {
+        const head = await fetch(prebuiltUrl, { method: "HEAD" });
+        if (head.ok) {
+          setAudioSources((current) => ({ ...current, [kind]: prebuiltUrl }));
+          setLesson((current) =>
+            current?.id === targetLesson.id
+              ? {
+                  ...current,
+                  audioUrl: prebuiltUrl,
+                  audioAvailable: true,
+                  voiceId,
+                  narrationProvider: "xai",
+                }
+              : current,
+          );
+          return;
+        }
+      } catch {
+        // network error — fall through to API
+      }
+    }
+
     setIsLoadingAudio(true);
     setNarrationError(null);
 
@@ -456,29 +484,55 @@ export default function Home() {
   }
 
   function previewTopic(topic: Topic) {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return;
-    }
+    if (typeof window === "undefined") return;
 
+    // Toggle off if already previewing this one
     if (previewingTopicId === topic.id) {
-      window.speechSynthesis.cancel();
+      previewAudioRef.current?.pause();
+      previewAudioRef.current = null;
+      window.speechSynthesis?.cancel();
       setPreviewingTopicId(null);
       return;
     }
 
-    window.speechSynthesis.cancel();
-    const parts = [topic.title];
-    if (topic.cluster) parts.push(topic.cluster);
-    parts.push(topic.summary);
-    if (topic.keyLine) parts.push(topic.keyLine);
-    const utterance = new SpeechSynthesisUtterance(parts.join(". "));
-    utterance.rate =
-      speechSpeed === "slower" ? 0.78 : speechSpeed === "faster" ? 1.08 : 0.9;
-    utterance.pitch = 0.95;
-    utterance.onend = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
-    utterance.onerror = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
-    window.speechSynthesis.speak(utterance);
+    // Stop any current preview
+    previewAudioRef.current?.pause();
+    previewAudioRef.current = null;
+    window.speechSynthesis?.cancel();
+
     setPreviewingTopicId(topic.id);
+
+    const fallbackToBrowser = () => {
+      if (!("speechSynthesis" in window)) {
+        setPreviewingTopicId((id) => (id === topic.id ? null : id));
+        return;
+      }
+      const parts = [topic.title];
+      if (topic.cluster) parts.push(topic.cluster);
+      parts.push(topic.summary);
+      if (topic.keyLine) parts.push(topic.keyLine);
+      const utterance = new SpeechSynthesisUtterance(parts.join(". "));
+      utterance.rate =
+        speechSpeed === "slower" ? 0.78 : speechSpeed === "faster" ? 1.08 : 0.9;
+      utterance.pitch = 0.95;
+      utterance.onend = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
+      utterance.onerror = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // Try the pre-built warm preview first (Ara). Falls back to browser TTS.
+    const url = `/audio/previews/${topic.id}.mp3`;
+    const audio = new Audio(url);
+    audio.onended = () => setPreviewingTopicId((id) => (id === topic.id ? null : id));
+    audio.onerror = () => {
+      previewAudioRef.current = null;
+      fallbackToBrowser();
+    };
+    previewAudioRef.current = audio;
+    audio.play().catch(() => {
+      previewAudioRef.current = null;
+      fallbackToBrowser();
+    });
   }
 
   function playBrowserSpeech(text = currentScript) {

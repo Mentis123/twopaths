@@ -57,7 +57,8 @@ type AmbientContextValue = {
 };
 
 const STORAGE_KEY = "two-paths-ambient-state";
-const DEFAULT_VOLUME = 0.45;
+const MAX_VOLUME = 0.5; // half of audio element max — keeps ambient under TTS narration
+const DEFAULT_VOLUME = 0.25; // middle of the new range
 const RECENT_HISTORY = 3;
 
 const Context = createContext<AmbientContextValue | null>(null);
@@ -113,8 +114,8 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     if (stored.mode === "liked" || stored.mode === "all") setMode(stored.mode);
     if (Array.isArray(stored.liked)) setLiked(stored.liked.filter((id) => typeof id === "string"));
     if (Array.isArray(stored.disliked)) setDisliked(stored.disliked.filter((id) => typeof id === "string"));
-    if (typeof stored.volume === "number" && stored.volume >= 0 && stored.volume <= 1) {
-      setVolumeState(stored.volume);
+    if (typeof stored.volume === "number" && stored.volume >= 0) {
+      setVolumeState(Math.min(MAX_VOLUME, stored.volume));
     }
     setHydrated(true);
   }, []);
@@ -322,7 +323,7 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setVolume = useCallback((value: number) => {
-    const clamped = Math.max(0, Math.min(1, value));
+    const clamped = Math.max(0, Math.min(MAX_VOLUME, value));
     setVolumeState(clamped);
   }, []);
 
