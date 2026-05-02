@@ -60,6 +60,13 @@ a:focus-visible {
   padding: 28px;
 }
 
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 16px;
+    padding-bottom: calc(180px + env(safe-area-inset-bottom));
+  }
+}
+
 .surface {
   width: min(100%, 1280px);
   margin: 0 auto;
@@ -622,12 +629,13 @@ a:focus-visible {
   font-weight: 700;
   line-height: 1.2;
   color: var(--navy);
-  padding: 0 36px 0 4px;
+  padding: 0 48px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin: 0;
+  word-break: break-word;
 }
 
 .topic-tile-image {
@@ -865,6 +873,38 @@ a:focus-visible {
   .topics-square-grid {
     aspect-ratio: 1;
   }
+
+  .topic-tile {
+    padding: 12px 10px;
+    gap: 6px;
+  }
+
+  .topic-tile-title {
+    font-size: 14px;
+    padding: 0 38px;
+  }
+
+  .topic-tile-summary {
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+  }
+
+  .topic-tile-cluster {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  .topic-tile-speaker {
+    width: 30px;
+    height: 30px;
+    top: 6px;
+    right: 6px;
+  }
+
+  .topic-tile-speaker svg {
+    width: 15px;
+    height: 15px;
+  }
 }
 
 /* Universal page frame — gold ornamental corners on deep navy.
@@ -994,11 +1034,24 @@ a:focus-visible {
 .lesson-transcript-scrollable {
   max-height: 320px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .lesson-transcript-scrollable .lesson-transcript-body {
   font-size: 18px;
   line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .lesson-transcript-scrollable {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .lesson-transcript-scrollable .lesson-transcript-body {
+    font-size: 16px;
+  }
 }
 
 .lesson-nav-btn {
@@ -1554,6 +1607,7 @@ a:focus-visible {
   -webkit-appearance: none;
   background: transparent;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .ambient-player-slider:disabled {
@@ -1679,6 +1733,26 @@ a:focus-visible {
     right: max(12px, env(safe-area-inset-right));
     bottom: max(12px, env(safe-area-inset-bottom));
     width: auto;
+  }
+
+  .ambient-player-slider {
+    height: 28px;
+  }
+
+  .ambient-player-slider::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+    margin-top: -10px;
+  }
+
+  .ambient-player-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  .ambient-player-volume-icon {
+    width: 28px;
+    height: 28px;
   }
 }
 
