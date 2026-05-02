@@ -61,46 +61,55 @@ export async function POST(request: Request) {
   }
 
   let xaiError: VoiceProviderError | null = null;
+  let geminiError: string | null = null;
 
-  try {
-    const audio = await synthesizeWithXai({
-      text,
-      voiceId,
-      language,
-      format,
-      cache: body.cache !== false,
-      tradition,
-      topic: body.topic,
-      speechSpeed,
-    });
+  // Skip xAI entirely if no key — saves a useless 401 round-trip
+  if (!process.env.XAI_API_KEY) {
+    xaiError = new VoiceProviderError("XAI_API_KEY not set", 401, false);
+  } else {
+    try {
+      const audio = await synthesizeWithXai({
+        text,
+        voiceId,
+        language,
+        format,
+        cache: body.cache !== false,
+        tradition,
+        topic: body.topic,
+        speechSpeed,
+      });
 
-    return new Response(new Uint8Array(audio.bytes), {
-      status: 200,
-      headers: {
-        "Content-Type": audio.mimeType,
-        "Content-Length": String(audio.bytes.length),
-        "Cache-Control": "private, max-age=3600",
-        "X-Two-Paths-Audio-Cache": audio.cached ? "hit" : "miss",
-        "X-Two-Paths-Audio-Hash": audio.cacheKey,
-        "X-Two-Paths-Duration-Estimate": String(audio.durationEstimateSeconds),
-        "X-Two-Paths-Voice": audio.voiceId,
-        "X-Two-Paths-Provider": "xai",
-      },
-    });
-  } catch (error) {
-    if (error instanceof VoiceProviderError) {
-      xaiError = error;
-    } else {
-      xaiError = new VoiceProviderError(
-        "xAI voice request failed.",
-        503,
-        true,
-      );
+      return new Response(new Uint8Array(audio.bytes), {
+        status: 200,
+        headers: {
+          "Content-Type": audio.mimeType,
+          "Content-Length": String(audio.bytes.length),
+          "Cache-Control": "private, max-age=3600",
+          "X-Two-Paths-Audio-Cache": audio.cached ? "hit" : "miss",
+          "X-Two-Paths-Audio-Hash": audio.cacheKey,
+          "X-Two-Paths-Duration-Estimate": String(audio.durationEstimateSeconds),
+          "X-Two-Paths-Voice": audio.voiceId,
+          "X-Two-Paths-Provider": "xai",
+        },
+      });
+    } catch (error) {
+      if (error instanceof VoiceProviderError) {
+        xaiError = error;
+      } else {
+        xaiError = new VoiceProviderError(
+          error instanceof Error ? error.message : "xAI voice request failed.",
+          503,
+          true,
+        );
+      }
+      console.error("xAI TTS failed", xaiError.message);
     }
   }
 
   // Gemini fallback — keeps narration warm even when xAI key/quota fails.
-  if (isGeminiConfigured()) {
+  if (!isGeminiConfigured()) {
+    geminiError = "GEMINI_API_KEY / GOOGLE_API_KEY not set";
+  } else {
     try {
       const dataUrl = await synthesizeNarration({
         script: text,
@@ -109,7 +118,6 @@ export async function POST(request: Request) {
       });
 
       if (dataUrl) {
-        // Convert the data URL back to bytes
         const base64 = dataUrl.split(",")[1] || "";
         const bytes = Buffer.from(base64, "base64");
         return new Response(new Uint8Array(bytes), {
@@ -124,16 +132,24 @@ export async function POST(request: Request) {
           },
         });
       }
+      // null = Gemini ran but returned no audio. Most likely the TTS preview
+      // model is not enabled on this API key, or the script tripped a safety
+      // filter. The synthesizeNarration() call already console.error'd.
+      geminiError =
+        "Gemini returned no audio (likely TTS preview model not enabled on this key, or content filter)";
     } catch (error) {
-      console.error("Gemini TTS fallback failed", error);
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error("Gemini TTS fallback failed", detail);
+      geminiError = detail.slice(0, 200);
     }
   }
 
   return Response.json(
     {
-      error: xaiError.message,
+      error: `Both warm voices failed. xAI: ${xaiError.message}. Gemini: ${geminiError}.`,
+      xaiError: xaiError.message,
+      geminiError,
       retryable: xaiError.retryable,
-      provider: "xai",
     },
     { status: xaiError.status },
   );

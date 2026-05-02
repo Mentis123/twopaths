@@ -111,13 +111,24 @@ export async function synthesizeNarration({
     const data = part?.inlineData?.data;
 
     if (!data) {
+      console.error(
+        "Gemini TTS returned no audio. finishReason:",
+        response.candidates?.[0]?.finishReason,
+        "promptFeedback:",
+        JSON.stringify(response.promptFeedback || {}),
+        "model:",
+        ttsModel(),
+      );
       return null;
     }
 
     return pcmBase64ToWavDataUrl(data);
   } catch (error) {
-    console.error("Gemini TTS generation failed", error);
-    return null;
+    console.error(
+      "Gemini TTS generation threw",
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    );
+    throw error;
   }
 }
 
