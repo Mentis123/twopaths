@@ -1096,6 +1096,26 @@ export function curatedTopics(
   return ordered.slice(0, count).map(toTopic);
 }
 
+export function buildPreviewText(topicId: string): string | null {
+  const item = troveById.get(topicId);
+  if (!item) return null;
+  const parts = [item.title];
+  if (item.cluster) parts.push(item.cluster);
+  parts.push(item.summary);
+  if (item.keyLine) parts.push(item.keyLine);
+  return parts.join(". ");
+}
+
+export function buildLessonScript(topicId: string, mode: SessionMode): string | null {
+  const item = troveById.get(topicId);
+  if (!item) return null;
+  return buildScript(item, mode);
+}
+
+export function listTroveIds(): Array<{ id: string; tradition: Tradition }> {
+  return trove.map((item) => ({ id: item.id, tradition: item.tradition }));
+}
+
 export function dailySeed(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Sydney",
