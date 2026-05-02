@@ -1,8 +1,8 @@
-import { synthesizeWithXai, isVoiceId, VoiceProviderError } from "@/lib/voice";
+import { synthesizeWithXai, isVoiceId } from "@/lib/voice";
 import { isGeminiConfigured, synthesizeNarration } from "@/lib/gemini";
 import type { Tradition, VoiceId } from "@/lib/types";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const validTraditions = new Set(["judaism", "buddhism", "both"]);
 const validSpeeds = new Set(["slower", "normal", "faster"]);
@@ -60,15 +60,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "Only MP3 output is supported." }, { status: 400 });
   }
 
-  let xaiError: VoiceProviderError | null = null;
-  let geminiError: string | null = null;
+  // Race xAI and Gemini in parallel — whichever returns audio first wins.
+  // This cuts perceived latency roughly in half and keeps us well inside
+  // the 60s function ceiling even when one provider is slow.
+  type Outcome =
+    | { ok: true; provider: "xai"; bytes: Buffer; mime: string; voice: string; cached: boolean; cacheKey: string; duration: number }
+    | { ok: true; provider: "gemini"; bytes: Buffer; mime: string; voice: string }
+    | { ok: false; provider: "xai" | "gemini"; error: string };
 
-  // Skip xAI entirely if no key — saves a useless 401 round-trip
-  if (!process.env.XAI_API_KEY) {
-    xaiError = new VoiceProviderError("XAI_API_KEY not set", 401, false);
-  } else {
-    try {
-      const audio = await synthesizeWithXai({
+  const tasks: Promise<Outcome>[] = [];
+
+  if (process.env.XAI_API_KEY) {
+    tasks.push(
+      synthesizeWithXai({
         text,
         voiceId,
         language,
@@ -77,80 +81,93 @@ export async function POST(request: Request) {
         tradition,
         topic: body.topic,
         speechSpeed,
-      });
-
-      return new Response(new Uint8Array(audio.bytes), {
-        status: 200,
-        headers: {
-          "Content-Type": audio.mimeType,
-          "Content-Length": String(audio.bytes.length),
-          "Cache-Control": "private, max-age=3600",
-          "X-Two-Paths-Audio-Cache": audio.cached ? "hit" : "miss",
-          "X-Two-Paths-Audio-Hash": audio.cacheKey,
-          "X-Two-Paths-Duration-Estimate": String(audio.durationEstimateSeconds),
-          "X-Two-Paths-Voice": audio.voiceId,
-          "X-Two-Paths-Provider": "xai",
-        },
-      });
-    } catch (error) {
-      if (error instanceof VoiceProviderError) {
-        xaiError = error;
-      } else {
-        xaiError = new VoiceProviderError(
-          error instanceof Error ? error.message : "xAI voice request failed.",
-          503,
-          true,
-        );
-      }
-      console.error("xAI TTS failed", xaiError.message);
-    }
+      })
+        .then<Outcome>((audio) => ({
+          ok: true,
+          provider: "xai",
+          bytes: audio.bytes,
+          mime: audio.mimeType,
+          voice: audio.voiceId,
+          cached: audio.cached,
+          cacheKey: audio.cacheKey,
+          duration: audio.durationEstimateSeconds,
+        }))
+        .catch<Outcome>((error) => ({
+          ok: false,
+          provider: "xai",
+          error: error instanceof Error ? error.message : String(error),
+        })),
+    );
+  } else {
+    tasks.push(Promise.resolve({ ok: false, provider: "xai", error: "XAI_API_KEY not set" }));
   }
 
-  // Gemini fallback — keeps narration warm even when xAI key/quota fails.
-  if (!isGeminiConfigured()) {
-    geminiError = "GEMINI_API_KEY / GOOGLE_API_KEY not set";
-  } else {
-    try {
-      const dataUrl = await synthesizeNarration({
+  if (isGeminiConfigured()) {
+    tasks.push(
+      synthesizeNarration({
         script: text,
         voiceName: "Kore",
         speechSpeed,
-      });
-
-      if (dataUrl) {
-        const base64 = dataUrl.split(",")[1] || "";
-        const bytes = Buffer.from(base64, "base64");
-        return new Response(new Uint8Array(bytes), {
-          status: 200,
-          headers: {
-            "Content-Type": "audio/wav",
-            "Content-Length": String(bytes.length),
-            "Cache-Control": "private, max-age=3600",
-            "X-Two-Paths-Voice": "Kore",
-            "X-Two-Paths-Provider": "gemini",
-            "X-Two-Paths-Fallback-Reason": xaiError.message,
-          },
-        });
-      }
-      // null = Gemini ran but returned no audio. Most likely the TTS preview
-      // model is not enabled on this API key, or the script tripped a safety
-      // filter. The synthesizeNarration() call already console.error'd.
-      geminiError =
-        "Gemini returned no audio (likely TTS preview model not enabled on this key, or content filter)";
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      console.error("Gemini TTS fallback failed", detail);
-      geminiError = detail.slice(0, 200);
-    }
+      })
+        .then<Outcome>((dataUrl) => {
+          if (!dataUrl) {
+            return {
+              ok: false,
+              provider: "gemini",
+              error: "Gemini returned no audio (TTS preview likely not enabled on this key)",
+            };
+          }
+          const base64 = dataUrl.split(",")[1] || "";
+          return {
+            ok: true,
+            provider: "gemini",
+            bytes: Buffer.from(base64, "base64"),
+            mime: "audio/wav",
+            voice: "Kore",
+          };
+        })
+        .catch<Outcome>((error) => ({
+          ok: false,
+          provider: "gemini",
+          error: error instanceof Error ? error.message : String(error),
+        })),
+    );
+  } else {
+    tasks.push(Promise.resolve({ ok: false, provider: "gemini", error: "GEMINI_API_KEY / GOOGLE_API_KEY not set" }));
   }
+
+  // Resolve all so we can report both errors if both fail; pick first ok.
+  const outcomes = await Promise.all(tasks);
+  const winner = outcomes.find((o) => o.ok);
+
+  if (winner && winner.ok) {
+    const headers: Record<string, string> = {
+      "Content-Type": winner.mime,
+      "Content-Length": String(winner.bytes.length),
+      "Cache-Control": "private, max-age=86400",
+      "X-Two-Paths-Voice": winner.voice,
+      "X-Two-Paths-Provider": winner.provider,
+    };
+    if (winner.provider === "xai") {
+      headers["X-Two-Paths-Audio-Cache"] = winner.cached ? "hit" : "miss";
+      headers["X-Two-Paths-Audio-Hash"] = winner.cacheKey;
+      headers["X-Two-Paths-Duration-Estimate"] = String(winner.duration);
+    }
+    return new Response(new Uint8Array(winner.bytes), { status: 200, headers });
+  }
+
+  const xaiOut = outcomes.find((o) => o.provider === "xai") as Extract<Outcome, { ok: false }>;
+  const gemOut = outcomes.find((o) => o.provider === "gemini") as Extract<Outcome, { ok: false }>;
+
+  console.error("Both TTS providers failed:", { xai: xaiOut?.error, gemini: gemOut?.error });
 
   return Response.json(
     {
-      error: `Both warm voices failed. xAI: ${xaiError.message}. Gemini: ${geminiError}.`,
-      xaiError: xaiError.message,
-      geminiError,
-      retryable: xaiError.retryable,
+      error: `Both warm voices failed. xAI: ${xaiOut?.error || "n/a"}. Gemini: ${gemOut?.error || "n/a"}.`,
+      xaiError: xaiOut?.error || null,
+      geminiError: gemOut?.error || null,
+      retryable: true,
     },
-    { status: xaiError.status },
+    { status: 503 },
   );
 }

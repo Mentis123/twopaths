@@ -175,6 +175,10 @@ export default function Home() {
 
     if (pendingAudioAutoplayRef.current) {
       pendingAudioAutoplayRef.current = false;
+      // Cancel the placeholder browser speech (started while warm voice loaded)
+      // before swapping to the real warm narration.
+      window.speechSynthesis?.cancel();
+      utteranceRef.current = null;
       audio.play().catch(() => setIsPlaying(false));
     }
 
@@ -296,6 +300,17 @@ export default function Home() {
 
       const data = (await response.json()) as LessonSession;
       setLesson(data);
+
+      // Kick off the warm-voice fetch immediately. If autoStart is true,
+      // also start browser TTS reading the script *right now* so audio
+      // starts in <1s while the warm voice loads in the background — when
+      // it lands, the audioSources useEffect auto-plays it (because
+      // pendingAudioAutoplayRef is true), which interrupts the browser
+      // utterance via stopAudio earlier in this function.
+      if (autoStart) {
+        pendingAudioAutoplayRef.current = true;
+        playBrowserSpeech(data.script);
+      }
       void requestNarrationFor(data, "main", autoStart);
       loadHistory();
     } catch {
@@ -494,18 +509,33 @@ export default function Home() {
   }
 
   function continueAudio() {
+    // Warm voice already loaded → just play it
     if (audioRef.current) {
       audioRef.current.play().catch(() => setIsPlaying(false));
       return;
     }
 
+    // Browser TTS paused → resume
     if (window.speechSynthesis?.paused) {
       window.speechSynthesis.resume();
       setIsPlaying(true);
       return;
     }
 
+    // Warm voice still on the way — start browser TTS now so audio is
+    // immediate, and flag autoplay so the warm voice swaps in cleanly
+    // when it lands. Do NOT fire another /api/voice/tts request — the
+    // existing in-flight one will arrive shortly.
+    if (isLoadingAudio && lesson) {
+      pendingAudioAutoplayRef.current = true;
+      playBrowserSpeech();
+      return;
+    }
+
+    // No request in flight, no audio loaded — start a fetch + browser TTS bridge
     if (lesson) {
+      pendingAudioAutoplayRef.current = true;
+      playBrowserSpeech();
       void requestNarrationFor(lesson, showSimplified ? "simplified" : "main", true);
       return;
     }
@@ -520,7 +550,15 @@ export default function Home() {
       return;
     }
 
+    if (isLoadingAudio && lesson) {
+      pendingAudioAutoplayRef.current = true;
+      playBrowserSpeech();
+      return;
+    }
+
     if (lesson) {
+      pendingAudioAutoplayRef.current = true;
+      playBrowserSpeech();
       void requestNarrationFor(lesson, showSimplified ? "simplified" : "main", true);
       return;
     }
