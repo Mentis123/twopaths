@@ -20,7 +20,7 @@ function geminiClient() {
 }
 
 export function textModel() {
-  return process.env.GEMINI_TEXT_MODEL || "gemini-2.5-flash-lite";
+  return process.env.GEMINI_TEXT_MODEL || "gemini-3-flash-preview";
 }
 
 export function ttsModel() {

@@ -23,7 +23,7 @@ Optional:
 
 ```bash
 DATABASE_URL=your_neon_pooled_connection_string
-GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
+GEMINI_TEXT_MODEL=gemini-3-flash-preview
 GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 ```
 
