@@ -129,9 +129,6 @@ The main idea today is simple: wisdom can begin with one calm, kind pause.`;
     mode,
     title,
     script,
-    simplifiedScript: isJudaism
-      ? `This teaching invites a gentle pause. In many Jewish traditions, stories, blessings, and remembered phrases help people notice what matters. Today, the simple idea is this: attention can make ordinary life feel more sacred. A kind word, a restful moment, or a small act of repair can be meaningful.`
-      : `This teaching invites a gentle pause. In many Buddhist traditions, wisdom begins by noticing the present moment with kindness. Today, the simple idea is this: one calm breath can help the heart soften. Compassion can begin in ordinary life.`,
     segments: [
       mode === "story"
         ? "Begin with a simple teaching story."

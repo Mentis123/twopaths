@@ -60,7 +60,6 @@ export type LessonSession = {
   mode: SessionMode;
   title: string;
   script: string;
-  simplifiedScript: string;
   segments: string[];
   question: QuizQuestion;
   closing: {

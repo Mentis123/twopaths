@@ -19,7 +19,6 @@ export const maxDuration = 15;
 type GeneratedLesson = {
   title?: string;
   script?: string;
-  simplifiedScript?: string;
   segments?: string[];
   question?: {
     prompt?: string;
@@ -178,7 +177,6 @@ function normalizeLesson({
     mode,
     title: generated.title || topic.title,
     script: generated.script,
-    simplifiedScript: generated.simplifiedScript || fallback.simplifiedScript,
     segments:
       generated.segments?.filter(Boolean).slice(0, 4) ||
       fallback.segments,

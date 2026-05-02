@@ -1174,7 +1174,6 @@ export function troveLesson({
     mode,
     title: modeTitle(item, mode),
     script: buildScript(item, mode),
-    simplifiedScript: buildSimplifiedScript(item),
     segments: [
       `Begin with ${item.figures.slice(0, 2).join(" and ")}.`,
       item.keyLine,
@@ -1336,17 +1335,6 @@ function buildQuizScript(item: TroveItem) {
     `Here is the angle the question will turn on. ${item.deepening}`,
     `Hold that lightly. The question on the next screen is not a test. It is an invitation to notice what the teaching is asking of us.`,
   ].join("\n\n");
-}
-
-function buildSimplifiedScript(item: TroveItem) {
-  const path =
-    item.tradition === "both"
-      ? "two traditions in careful conversation"
-      : item.tradition === "judaism"
-        ? "a Jewish teaching"
-        : "a Buddhist teaching";
-
-  return `${item.title} is ${path}. The simple idea is this: ${item.keyLine} ${item.context[0]} The deeper invitation is gentle but serious: ${item.takeaway} For a small practice, ${item.practice}`;
 }
 
 function modeTitle(item: TroveItem, mode: SessionMode) {

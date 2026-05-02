@@ -50,7 +50,7 @@ type RecentSession = {
   created_at: string;
 };
 
-type AudioKind = "main" | "simplified";
+type AudioKind = "main";
 type CaregiverPreferences = {
   favouriteThemes?: string[];
   speechSpeed?: SpeechSpeed;
@@ -111,7 +111,6 @@ export default function Home() {
   const [isLoadingLesson, setIsLoadingLesson] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showSimplified, setShowSimplified] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
   const [sessionMinutes, setSessionMinutes] = useState(5);
@@ -143,10 +142,10 @@ export default function Home() {
       return "";
     }
 
-    return showSimplified ? lesson.simplifiedScript : lesson.script;
-  }, [lesson, showSimplified]);
+    return lesson.script;
+  }, [lesson]);
 
-  const activeAudioUrl = showSimplified ? audioSources.simplified : audioSources.main;
+  const activeAudioUrl = audioSources.main;
 
   useEffect(() => {
     const objectUrls = audioObjectUrlsRef.current;
@@ -270,11 +269,11 @@ export default function Home() {
   async function chooseTopic(topic: Topic, autoStart = false, overrideMode?: SessionMode) {
     const lessonMode = overrideMode ?? mode;
     setSelectedTopic(topic);
-    setScreen("lesson");
+    // Quiz mode IS the question — land there directly, skip the lesson screen.
+    setScreen(lessonMode === "quiz" ? "question" : "lesson");
     setLesson(null);
     setAudioSources({});
     setNarrationError(null);
-    setShowSimplified(false);
     setSelectedAnswer(null);
     setHintVisible(false);
     setIsLoadingLesson(true);
@@ -363,7 +362,7 @@ export default function Home() {
     kind: AudioKind,
     autoPlay: boolean,
   ) {
-    const text = kind === "simplified" ? targetLesson.simplifiedScript : targetLesson.script;
+    const text = targetLesson.script;
 
     if (!text) {
       return;
@@ -606,7 +605,7 @@ export default function Home() {
     if (lesson) {
       pendingAudioAutoplayRef.current = true;
       playBrowserSpeech();
-      void requestNarrationFor(lesson, showSimplified ? "simplified" : "main", true);
+      void requestNarrationFor(lesson, "main", true);
       return;
     }
 
@@ -629,30 +628,11 @@ export default function Home() {
     if (lesson) {
       pendingAudioAutoplayRef.current = true;
       playBrowserSpeech();
-      void requestNarrationFor(lesson, showSimplified ? "simplified" : "main", true);
+      void requestNarrationFor(lesson, "main", true);
       return;
     }
 
     playBrowserSpeech();
-  }
-
-  function makeSimpler() {
-    if (!lesson) {
-      return;
-    }
-
-    stopAudio();
-    setShowSimplified(true);
-
-    if (audioSources.simplified) {
-      pendingAudioAutoplayRef.current = true;
-      window.setTimeout(() => {
-        audioRef.current?.play().catch(() => setIsPlaying(false));
-      }, 0);
-      return;
-    }
-
-    void requestNarrationFor(lesson, "simplified", true);
   }
 
   const backHomeButton = (
@@ -724,14 +704,12 @@ export default function Home() {
             onPickTopic={(topic) => chooseTopic(topic, isPlaying)}
             currentScript={currentScript}
             showTranscript={showTranscript}
-            showSimplified={showSimplified}
             isPlaying={isPlaying}
             voiceId={voiceId}
             onBack={() => setScreen("topics")}
             onPlay={continueAudio}
             onPause={pauseAudio}
             onRepeat={repeatCurrent}
-            onSimplify={makeSimpler}
             onQuestion={() => {
               pauseAudio();
               setScreen("question");
@@ -1277,14 +1255,12 @@ function LessonScreen({
   onPickTopic,
   currentScript,
   showTranscript,
-  showSimplified,
   isPlaying,
   voiceId,
   onBack,
   onPlay,
   onPause,
   onRepeat,
-  onSimplify,
   onQuestion,
   onFinish,
 }: {
@@ -1300,14 +1276,12 @@ function LessonScreen({
   onPickTopic: (topic: Topic) => void;
   currentScript: string;
   showTranscript: boolean;
-  showSimplified: boolean;
   isPlaying: boolean;
   voiceId: VoiceId;
   onBack: () => void;
   onPlay: () => void;
   onPause: () => void;
   onRepeat: () => void;
-  onSimplify: () => void;
   onQuestion: () => void;
   onFinish: () => void;
 }) {
@@ -1425,7 +1399,7 @@ function LessonScreen({
         <div className="lesson-tile lesson-transcript lesson-transcript-scrollable">
           <div className="lesson-transcript-head">
             <BookOpen aria-hidden size={22} />
-            {showSimplified ? "Simpler version" : "Transcript"}
+            Transcript
           </div>
           <p className="lesson-transcript-body">{currentScript}</p>
         </div>
@@ -1452,10 +1426,6 @@ function LessonScreen({
           <button className="large-button secondary-light" onClick={onRepeat}>
             <RotateCcw aria-hidden size={20} />
             Repeat
-          </button>
-          <button className="large-button secondary-light" onClick={onSimplify}>
-            <Leaf aria-hidden size={20} />
-            Simpler
           </button>
           <button className="large-button secondary-light" onClick={onQuestion}>
             <CircleHelp aria-hidden size={20} />
