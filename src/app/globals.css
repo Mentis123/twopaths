@@ -119,7 +119,7 @@ a:focus-visible {
 
 .landing-map {
   position: relative;
-  width: min(calc(100vw - 56px), calc(100vh - 56px), 860px);
+  width: min(100%, calc(100vh - 56px), 860px);
   max-width: 100%;
   aspect-ratio: 1;
 }
@@ -164,43 +164,99 @@ a:focus-visible {
 }
 
 .landing-hotspot-menu {
-  top: 3.8%;
-  left: 4.4%;
-  width: 8.4%;
-  height: 8.4%;
+  top: 9.5%;
+  left: 9.7%;
+  width: clamp(64px, 7.6%, 82px);
+  height: clamp(64px, 7.6%, 82px);
   border-radius: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .landing-hotspot-settings {
-  top: 3.8%;
-  right: 4.4%;
-  width: 8.4%;
-  height: 8.4%;
+  top: 9.5%;
+  left: 90.2%;
+  width: clamp(64px, 7.6%, 82px);
+  height: clamp(64px, 7.6%, 82px);
   border-radius: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .landing-hotspot-judaism {
-  top: 22%;
-  left: 7%;
-  width: 39%;
-  height: 55%;
-  border-radius: 42% 26% 34% 50%;
+  top: 6%;
+  left: 6%;
+  width: 61%;
+  height: 75%;
+  border-radius: 50%;
+  clip-path: polygon(
+    4% 57%,
+    1% 38%,
+    8% 20%,
+    24% 6%,
+    48% 0,
+    74% 4%,
+    91% 15%,
+    95% 27%,
+    88% 38%,
+    74% 49%,
+    65% 60%,
+    67% 75%,
+    78% 94%,
+    55% 100%,
+    28% 96%,
+    10% 83%
+  );
 }
 
 .landing-hotspot-buddhism {
-  top: 22%;
-  right: 7%;
-  width: 42%;
-  height: 58%;
-  border-radius: 28% 48% 48% 34%;
+  top: 5%;
+  right: 5%;
+  width: 62%;
+  height: 79%;
+  border-radius: 50%;
+  clip-path: polygon(
+    33% 0,
+    62% 2%,
+    83% 14%,
+    97% 34%,
+    100% 57%,
+    91% 78%,
+    73% 94%,
+    48% 100%,
+    22% 96%,
+    11% 86%,
+    20% 73%,
+    31% 62%,
+    36% 50%,
+    34% 38%,
+    27% 27%,
+    26% 15%
+  );
+}
+
+.landing-hotspot-dot {
+  width: clamp(64px, 9.6%, 104px);
+  height: clamp(64px, 9.6%, 104px);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.landing-hotspot-judaism-dot {
+  top: 18.5%;
+  left: 50.3%;
+}
+
+.landing-hotspot-buddhism-dot {
+  top: 63.4%;
+  left: 55.4%;
 }
 
 .landing-hotspot-surprise {
-  top: 80.8%;
-  left: 29.5%;
-  width: 41%;
-  height: 9.8%;
+  top: 85.1%;
+  left: 50%;
+  width: 39%;
+  height: 8.8%;
   border-radius: 999px;
+  transform: translateX(-50%);
 }
 
 .home-surprise {
@@ -419,14 +475,52 @@ a:focus-visible {
   border: 1px solid rgba(0, 29, 61, 0.12);
   background: rgba(255, 250, 240, 0.9);
   padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 21px;
   font-weight: 700;
+  text-align: center;
 }
 
 .segmented-choice[data-active="true"] {
   color: #fffaf0;
   background: var(--navy);
+}
+
+.favourite-chip {
+  min-height: 78px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 29, 61, 0.12);
+  background: rgba(255, 250, 240, 0.9);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14px 18px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 21px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.favourite-chip span + span {
+  margin-top: 3px;
+  color: var(--sage);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.favourite-chip[data-active="true"] {
+  color: #fffaf0;
+  background: var(--navy);
+}
+
+.favourite-chip[data-active="true"] span + span {
+  color: var(--gold);
 }
 
 @media (max-width: 900px) {
@@ -462,12 +556,13 @@ a:focus-visible {
   }
 
   .landing-panel {
-    min-height: auto;
-    justify-content: flex-start;
+    min-height: calc(100svh - 20px);
+    justify-content: center;
+    align-items: center;
   }
 
   .landing-map {
-    width: min(calc(100vw - 20px), 370px);
+    width: min(100%, 370px);
   }
 
   .sacred-panel {

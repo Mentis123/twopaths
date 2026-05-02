@@ -9,7 +9,9 @@ import type {
   SessionMode,
   Topic,
   Tradition,
+  VoiceId,
 } from "@/lib/types";
+import { isVoiceId } from "@/lib/voice";
 
 export const maxDuration = 15;
 
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
     minutes?: number;
     userId?: string;
     voiceName?: string;
+    voiceId?: VoiceId;
     speechSpeed?: "slower" | "normal" | "faster";
   } | null;
 
@@ -61,6 +64,7 @@ export async function POST(request: Request) {
   }
 
   const mode = body.mode && validModes.has(body.mode) ? body.mode : "listen";
+  const voiceId = isVoiceId(body.voiceId) ? body.voiceId : "ara";
   const minutes = clampMinutes(body.minutes);
   const fallback = fallbackLesson({
     tradition: body.tradition,
@@ -87,12 +91,15 @@ export async function POST(request: Request) {
     tradition: body.tradition,
     topic: body.topic,
     mode,
+    voiceId,
   });
 
   const withAudio: LessonSession = {
     ...normalized,
     audioUrl: null,
     audioAvailable: false,
+    voiceId,
+    narrationProvider: "xai",
   };
 
   const persisted = await saveSession({
@@ -115,15 +122,21 @@ function normalizeLesson({
   tradition,
   topic,
   mode,
+  voiceId,
 }: {
   generated: GeneratedLesson | null;
   fallback: LessonSession;
   tradition: Tradition;
   topic: Topic;
   mode: SessionMode;
+  voiceId: VoiceId;
 }): LessonSession {
   if (!generated?.script || !generated.question?.prompt) {
-    return fallback;
+    return {
+      ...fallback,
+      voiceId,
+      narrationProvider: "xai",
+    };
   }
 
   return {
@@ -149,6 +162,8 @@ function normalizeLesson({
     },
     audioUrl: null,
     audioAvailable: false,
+    voiceId,
+    narrationProvider: "xai",
     persisted: false,
     generatedBy: isGeminiConfigured() ? "gemini" : "fallback",
   };

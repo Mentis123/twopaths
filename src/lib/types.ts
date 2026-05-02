@@ -2,6 +2,8 @@ export type Tradition = "judaism" | "buddhism";
 
 export type SessionMode = "listen" | "story" | "quiz";
 
+export type VoiceId = "ara" | "sal" | "leo";
+
 export type Topic = {
   id: string;
   tradition: Tradition;
@@ -41,6 +43,8 @@ export type LessonSession = {
   };
   audioUrl: string | null;
   audioAvailable: boolean;
+  voiceId?: VoiceId;
+  narrationProvider?: "xai" | "browser";
   persisted: boolean;
   generatedBy: "gemini" | "fallback";
 };

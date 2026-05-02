@@ -7,12 +7,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS preferences (
   user_id text PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  preferred_voice text NOT NULL DEFAULT 'Kore',
-  speech_speed numeric NOT NULL DEFAULT 1.0,
+  preferred_voice text NOT NULL DEFAULT 'ara',
+  speech_speed text NOT NULL DEFAULT 'normal',
   default_mode text NOT NULL DEFAULT 'listen',
   preferred_session_length integer NOT NULL DEFAULT 5,
   show_text boolean NOT NULL DEFAULT true,
-  tradition_bias text NOT NULL DEFAULT 'balanced'
+  tradition_bias text NOT NULL DEFAULT 'balanced',
+  voice_provider text NOT NULL DEFAULT 'xai',
+  voice_id text NOT NULL DEFAULT 'ara',
+  audio_first boolean NOT NULL DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS topics (
@@ -31,9 +34,25 @@ CREATE TABLE IF NOT EXISTS sessions (
   tradition text NOT NULL,
   topic text NOT NULL,
   mode text NOT NULL,
+  lesson_script text,
+  audio_asset_id text,
+  voice_id text NOT NULL DEFAULT 'ara',
   created_at timestamptz NOT NULL DEFAULT now(),
   completed boolean NOT NULL DEFAULT false,
   enjoyment_rating integer
+);
+
+CREATE TABLE IF NOT EXISTS audio_assets (
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  session_id text REFERENCES sessions(id) ON DELETE SET NULL,
+  tradition text NOT NULL,
+  topic text NOT NULL,
+  voice_id text NOT NULL DEFAULT 'ara',
+  script_hash text NOT NULL,
+  audio_url text NOT NULL,
+  duration_seconds integer,
+  provider text NOT NULL DEFAULT 'xai',
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS favourites (

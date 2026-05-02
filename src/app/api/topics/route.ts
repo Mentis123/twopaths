@@ -29,6 +29,7 @@ const validVisuals = new Set([
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     tradition?: Tradition;
+    favouriteThemes?: string[];
   } | null;
 
   if (!body?.tradition || !validTraditions.has(body.tradition)) {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   }).format(new Date());
 
   const generated = await generateJson<GeneratedTopics>(
-    topicsPrompt(body.tradition, dateLabel),
+    topicsPrompt(body.tradition, dateLabel, normalizeFavouriteThemes(body.favouriteThemes)),
     {
       maxOutputTokens: 700,
       timeoutMs: 5000,
@@ -62,6 +63,18 @@ export async function POST(request: Request) {
   };
 
   return Response.json(response);
+}
+
+function normalizeFavouriteThemes(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 6);
 }
 
 function normalizeTopics(

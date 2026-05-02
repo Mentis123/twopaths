@@ -30,6 +30,7 @@ import type {
   Topic,
   TopicResponse,
   Tradition,
+  VoiceId,
 } from "@/lib/types";
 
 type Screen = "home" | "topics" | "lesson" | "question" | "settings";
@@ -43,11 +44,53 @@ type RecentSession = {
   created_at: string;
 };
 
+type AudioKind = "main" | "simplified";
+type CaregiverPreferences = {
+  favouriteThemes?: string[];
+  speechSpeed?: SpeechSpeed;
+  traditionBias?: "judaism" | "buddhism" | "balanced";
+  voiceId?: VoiceId;
+};
+
 const modes: Array<{ id: SessionMode; label: string }> = [
   { id: "listen", label: "Listen and Learn" },
   { id: "story", label: "Story Mode" },
   { id: "quiz", label: "Gentle Quiz" },
 ];
+
+const voiceOptions: Array<{ id: VoiceId; label: string; tone: string }> = [
+  { id: "ara", label: "Ara", tone: "Warm and balanced" },
+  { id: "sal", label: "Sal", tone: "Gentle and soft" },
+  { id: "leo", label: "Leo", tone: "Clear and steady" },
+];
+
+const favouriteThemeOptions: Array<{
+  id: string;
+  label: string;
+  tradition: Tradition | "both";
+}> = [
+  { id: "shabbat-rest", label: "Shabbat and rest", tradition: "judaism" },
+  { id: "rabbinic-stories", label: "Rabbinic stories", tradition: "judaism" },
+  { id: "hebrew-prayer", label: "Hebrew prayer meanings", tradition: "judaism" },
+  { id: "repair-kindness", label: "Repair and kindness", tradition: "judaism" },
+  { id: "mindfulness", label: "Mindfulness", tradition: "buddhism" },
+  { id: "compassion", label: "Compassion", tradition: "buddhism" },
+  { id: "patience-stories", label: "Patience stories", tradition: "buddhism" },
+  { id: "daily-practice", label: "Daily practice", tradition: "both" },
+];
+
+function readCaregiverPreferences(): CaregiverPreferences {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const saved = window.localStorage.getItem("two-paths-caregiver-preferences");
+    return saved ? (JSON.parse(saved) as CaregiverPreferences) : {};
+  } catch {
+    return {};
+  }
+}
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("home");
@@ -67,14 +110,25 @@ export default function Home() {
   const [hintVisible, setHintVisible] = useState(false);
   const [sessionMinutes, setSessionMinutes] = useState(5);
   const [speechSpeed, setSpeechSpeed] = useState<SpeechSpeed>("normal");
+  const [voiceId, setVoiceId] = useState<VoiceId>("ara");
   const [traditionBias, setTraditionBias] = useState<"judaism" | "buddhism" | "balanced">(
     "balanced",
   );
   const [showTranscript, setShowTranscript] = useState(true);
+  const [favouriteThemes, setFavouriteThemes] = useState<string[]>([
+    "shabbat-rest",
+    "compassion",
+  ]);
+  const [isManagingFavourites, setIsManagingFavourites] = useState(false);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [audioSources, setAudioSources] = useState<Partial<Record<AudioKind, string>>>({});
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [narrationError, setNarrationError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const pendingAudioAutoplayRef = useRef(false);
+  const audioObjectUrlsRef = useRef<string[]>([]);
 
   const currentScript = useMemo(() => {
     if (!lesson) {
@@ -84,10 +138,17 @@ export default function Home() {
     return showSimplified ? lesson.simplifiedScript : lesson.script;
   }, [lesson, showSimplified]);
 
+  const activeAudioUrl = showSimplified ? audioSources.simplified : audioSources.main;
+
   useEffect(() => {
+    const objectUrls = audioObjectUrlsRef.current;
+
     return () => {
       audioRef.current?.pause();
       window.speechSynthesis?.cancel();
+      for (const url of objectUrls) {
+        URL.revokeObjectURL(url);
+      }
     };
   }, []);
 
@@ -95,20 +156,65 @@ export default function Home() {
     audioRef.current?.pause();
     audioRef.current = null;
 
-    if (!lesson?.audioUrl) {
+    if (!activeAudioUrl) {
       return;
     }
 
-    const audio = new Audio(lesson.audioUrl);
+    const audio = new Audio(activeAudioUrl);
     audio.onended = () => setIsPlaying(false);
     audio.onpause = () => setIsPlaying(false);
     audio.onplay = () => setIsPlaying(true);
     audioRef.current = audio;
 
+    if (pendingAudioAutoplayRef.current) {
+      pendingAudioAutoplayRef.current = false;
+      audio.play().catch(() => setIsPlaying(false));
+    }
+
     return () => {
       audio.pause();
     };
-  }, [lesson?.audioUrl]);
+  }, [activeAudioUrl]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const parsed = readCaregiverPreferences();
+
+      if (Array.isArray(parsed.favouriteThemes)) {
+        setFavouriteThemes(parsed.favouriteThemes);
+      }
+
+      if (parsed.speechSpeed) {
+        setSpeechSpeed(parsed.speechSpeed);
+      }
+
+      if (parsed.traditionBias) {
+        setTraditionBias(parsed.traditionBias);
+      }
+
+      if (parsed.voiceId) {
+        setVoiceId(parsed.voiceId);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "two-paths-caregiver-preferences",
+        JSON.stringify({
+          favouriteThemes,
+          speechSpeed,
+          traditionBias,
+          voiceId,
+        }),
+      );
+    } catch {
+      // Local storage can be unavailable in private modes.
+    }
+  }, [favouriteThemes, speechSpeed, traditionBias, voiceId]);
 
   async function loadTopics(nextTradition: Tradition) {
     setTradition(nextTradition);
@@ -123,7 +229,10 @@ export default function Home() {
       const response = await fetch("/api/topics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tradition: nextTradition }),
+        body: JSON.stringify({
+          tradition: nextTradition,
+          favouriteThemes: favouriteThemeLabels(nextTradition),
+        }),
       });
 
       if (!response.ok) {
@@ -146,6 +255,8 @@ export default function Home() {
     setSelectedTopic(topic);
     setScreen("lesson");
     setLesson(null);
+    setAudioSources({});
+    setNarrationError(null);
     setShowSimplified(false);
     setSelectedAnswer(null);
     setHintVisible(false);
@@ -164,6 +275,7 @@ export default function Home() {
           minutes: sessionMinutes,
           userId: "dad",
           speechSpeed,
+          voiceId,
         }),
       });
 
@@ -173,9 +285,7 @@ export default function Home() {
 
       const data = (await response.json()) as LessonSession;
       setLesson(data);
-      if (autoStart) {
-        playCurrentScript(data.script);
-      }
+      void requestNarrationFor(data, "main", autoStart);
       loadHistory();
     } catch {
       setError("The lesson did not arrive. Please try this topic again.");
@@ -208,6 +318,95 @@ export default function Home() {
     loadTopics(Math.random() > 0.5 ? "judaism" : "buddhism");
   }
 
+  function favouriteThemeLabels(nextTradition: Tradition) {
+    return favouriteThemeOptions
+      .filter(
+        (item) =>
+          favouriteThemes.includes(item.id) &&
+          (item.tradition === "both" || item.tradition === nextTradition),
+      )
+      .map((item) => item.label);
+  }
+
+  async function requestNarrationFor(
+    targetLesson: LessonSession,
+    kind: AudioKind,
+    autoPlay: boolean,
+  ) {
+    const text = kind === "simplified" ? targetLesson.simplifiedScript : targetLesson.script;
+
+    if (!text) {
+      return;
+    }
+
+    if (autoPlay) {
+      stopAudio();
+      pendingAudioAutoplayRef.current = true;
+    }
+
+    setIsLoadingAudio(true);
+    setNarrationError(null);
+
+    try {
+      const response = await fetch("/api/voice/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          voice_id: voiceId,
+          language: "en",
+          format: "mp3",
+          session_id: targetLesson.id,
+          cache: true,
+          tradition: targetLesson.tradition,
+          topic: targetLesson.topic.title,
+          speech_speed: speechSpeed,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Voice generation failed.");
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      audioObjectUrlsRef.current.push(audioUrl);
+      pendingAudioAutoplayRef.current = autoPlay;
+      setAudioSources((current) => ({ ...current, [kind]: audioUrl }));
+      setLesson((current) =>
+        current?.id === targetLesson.id
+          ? {
+              ...current,
+              audioUrl: kind === "main" ? audioUrl : current.audioUrl,
+              audioAvailable: true,
+              voiceId,
+              narrationProvider: "xai",
+            }
+          : current,
+      );
+    } catch {
+      pendingAudioAutoplayRef.current = false;
+      setNarrationError(
+        "Grok voice is not available right now, so this will use the browser voice.",
+      );
+      setLesson((current) =>
+        current?.id === targetLesson.id
+          ? {
+              ...current,
+              audioAvailable: false,
+              narrationProvider: "browser",
+            }
+          : current,
+      );
+
+      if (autoPlay) {
+        playBrowserSpeech(text);
+      }
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  }
+
   function stopAudio() {
     audioRef.current?.pause();
     if (audioRef.current) {
@@ -218,13 +417,8 @@ export default function Home() {
     setIsPlaying(false);
   }
 
-  function playCurrentScript(text = currentScript) {
+  function playBrowserSpeech(text = currentScript) {
     if (!text) {
-      return;
-    }
-
-    if (audioRef.current && text === lesson?.script) {
-      audioRef.current.play().catch(() => setIsPlaying(false));
       return;
     }
 
@@ -251,7 +445,7 @@ export default function Home() {
   }
 
   function continueAudio() {
-    if (audioRef.current && !showSimplified) {
+    if (audioRef.current) {
       audioRef.current.play().catch(() => setIsPlaying(false));
       return;
     }
@@ -262,17 +456,27 @@ export default function Home() {
       return;
     }
 
-    playCurrentScript();
+    if (lesson) {
+      void requestNarrationFor(lesson, showSimplified ? "simplified" : "main", true);
+      return;
+    }
+
+    playBrowserSpeech();
   }
 
   function repeatCurrent() {
-    if (audioRef.current && !showSimplified) {
+    if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => setIsPlaying(false));
       return;
     }
 
-    playCurrentScript();
+    if (lesson) {
+      void requestNarrationFor(lesson, showSimplified ? "simplified" : "main", true);
+      return;
+    }
+
+    playBrowserSpeech();
   }
 
   function makeSimpler() {
@@ -280,8 +484,18 @@ export default function Home() {
       return;
     }
 
+    stopAudio();
     setShowSimplified(true);
-    playCurrentScript(lesson.simplifiedScript);
+
+    if (audioSources.simplified) {
+      pendingAudioAutoplayRef.current = true;
+      window.setTimeout(() => {
+        audioRef.current?.play().catch(() => setIsPlaying(false));
+      }, 0);
+      return;
+    }
+
+    void requestNarrationFor(lesson, "simplified", true);
   }
 
   const backHomeButton = (
@@ -326,12 +540,15 @@ export default function Home() {
             topic={selectedTopic}
             lesson={lesson}
             isLoading={isLoadingLesson}
+            isLoadingAudio={isLoadingAudio}
             error={error}
+            narrationError={narrationError}
             mode={mode}
             currentScript={currentScript}
             showTranscript={showTranscript}
             showSimplified={showSimplified}
             isPlaying={isPlaying}
+            voiceId={voiceId}
             onBack={() => setScreen("topics")}
             onPlay={continueAudio}
             onPause={pauseAudio}
@@ -354,7 +571,7 @@ export default function Home() {
             selectedAnswer={selectedAnswer}
             hintVisible={hintVisible}
             onSelectAnswer={setSelectedAnswer}
-            onHearAgain={() => playCurrentScript(lesson.question.prompt)}
+            onHearAgain={() => playBrowserSpeech(lesson.question.prompt)}
             onHint={() => setHintVisible(true)}
             onSkip={() => setScreen("lesson")}
             onBack={() => setScreen("lesson")}
@@ -367,8 +584,14 @@ export default function Home() {
             setSessionMinutes={setSessionMinutes}
             speechSpeed={speechSpeed}
             setSpeechSpeed={setSpeechSpeed}
+            voiceId={voiceId}
+            setVoiceId={setVoiceId}
             traditionBias={traditionBias}
             setTraditionBias={setTraditionBias}
+            favouriteThemes={favouriteThemes}
+            setFavouriteThemes={setFavouriteThemes}
+            isManagingFavourites={isManagingFavourites}
+            setIsManagingFavourites={setIsManagingFavourites}
             showTranscript={showTranscript}
             setShowTranscript={setShowTranscript}
             recentSessions={recentSessions}
@@ -423,6 +646,20 @@ function HomeScreen({
           className="landing-hotspot landing-hotspot-buddhism"
           onClick={() => onChoose("buddhism")}
           aria-label="Choose Buddhism"
+          title="Choose Buddhism"
+        />
+        <button
+          className="landing-hotspot landing-hotspot-dot landing-hotspot-judaism-dot"
+          onClick={() => onChoose("judaism")}
+          aria-hidden="true"
+          tabIndex={-1}
+          title="Choose Judaism"
+        />
+        <button
+          className="landing-hotspot landing-hotspot-dot landing-hotspot-buddhism-dot"
+          onClick={() => onChoose("buddhism")}
+          aria-hidden="true"
+          tabIndex={-1}
           title="Choose Buddhism"
         />
         <button
@@ -571,12 +808,15 @@ function LessonScreen({
   topic,
   lesson,
   isLoading,
+  isLoadingAudio,
   error,
+  narrationError,
   mode,
   currentScript,
   showTranscript,
   showSimplified,
   isPlaying,
+  voiceId,
   onBack,
   onPlay,
   onPause,
@@ -588,12 +828,15 @@ function LessonScreen({
   topic: Topic | null;
   lesson: LessonSession | null;
   isLoading: boolean;
+  isLoadingAudio: boolean;
   error: string | null;
+  narrationError: string | null;
   mode: SessionMode;
   currentScript: string;
   showTranscript: boolean;
   showSimplified: boolean;
   isPlaying: boolean;
+  voiceId: VoiceId;
   onBack: () => void;
   onPlay: () => void;
   onPause: () => void;
@@ -620,7 +863,7 @@ function LessonScreen({
         </h1>
 
         <div className="lesson-art mt-7 flex items-center justify-center">
-          {isLoading ? (
+          {isLoading || isLoadingAudio ? (
             <RefreshCw className="animate-spin text-[var(--gold)]" size={66} />
           ) : (
             <button
@@ -639,14 +882,32 @@ function LessonScreen({
           </div>
         )}
 
+        {narrationError && (
+          <div className="mt-6 rounded-[16px] bg-[#fff7d8] p-6 font-sans text-[24px]">
+            {narrationError}
+          </div>
+        )}
+
         {isLoading && (
           <p className="mt-6 text-center font-sans text-[26px]">
-            Preparing the words. The browser voice will be ready right away.
+            Preparing the words.
+          </p>
+        )}
+
+        {!isLoading && isLoadingAudio && (
+          <p className="mt-6 text-center font-sans text-[26px]">
+            Preparing Grok narration with {voiceLabel(voiceId)}.
           </p>
         )}
 
         {lesson && (
           <>
+            <p className="mt-5 text-center font-sans text-[21px] font-bold text-[var(--sage)]">
+              {lesson.audioAvailable
+                ? `Grok voice ready: ${voiceLabel(lesson.voiceId || voiceId)}`
+                : `Voice preference: ${voiceLabel(voiceId)}`}
+            </p>
+
             {showTranscript && (
               <div className="mt-6 rounded-[14px] border border-[rgba(0,29,61,0.12)] bg-white/60 p-7 shadow-sm">
                 <div className="mb-4 flex flex-wrap items-center gap-3 font-sans text-[21px] font-bold text-[var(--sage)]">
@@ -793,8 +1054,14 @@ function SettingsScreen({
   setSessionMinutes,
   speechSpeed,
   setSpeechSpeed,
+  voiceId,
+  setVoiceId,
   traditionBias,
   setTraditionBias,
+  favouriteThemes,
+  setFavouriteThemes,
+  isManagingFavourites,
+  setIsManagingFavourites,
   showTranscript,
   setShowTranscript,
   recentSessions,
@@ -804,13 +1071,27 @@ function SettingsScreen({
   setSessionMinutes: (value: number) => void;
   speechSpeed: SpeechSpeed;
   setSpeechSpeed: (value: SpeechSpeed) => void;
+  voiceId: VoiceId;
+  setVoiceId: (value: VoiceId) => void;
   traditionBias: "judaism" | "buddhism" | "balanced";
   setTraditionBias: (value: "judaism" | "buddhism" | "balanced") => void;
+  favouriteThemes: string[];
+  setFavouriteThemes: (value: string[]) => void;
+  isManagingFavourites: boolean;
+  setIsManagingFavourites: (value: boolean) => void;
   showTranscript: boolean;
   setShowTranscript: (value: boolean) => void;
   recentSessions: RecentSession[];
   backHomeButton: ReactNode;
 }) {
+  function toggleFavourite(id: string) {
+    setFavouriteThemes(
+      favouriteThemes.includes(id)
+        ? favouriteThemes.filter((item) => item !== id)
+        : [...favouriteThemes, id],
+    );
+  }
+
   return (
     <section className="sacred-panel rounded-[18px] p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -869,11 +1150,49 @@ function SettingsScreen({
           </div>
         </SettingBlock>
 
+        <SettingBlock icon={<Volume2 aria-hidden size={30} />} title="Narration voice">
+          <div className="grid gap-3 md:grid-cols-3">
+            {voiceOptions.map((voice) => (
+              <button
+                key={voice.id}
+                className="segmented-choice min-h-[92px] flex-col"
+                data-active={voiceId === voice.id}
+                onClick={() => setVoiceId(voice.id)}
+              >
+                <span>{voice.label}</span>
+                <span className="font-sans text-[18px] font-normal">{voice.tone}</span>
+              </button>
+            ))}
+          </div>
+        </SettingBlock>
+
         <SettingBlock icon={<BookOpen aria-hidden size={30} />} title="Favourite topics">
-          <button className="large-button secondary-light w-full">
+          <button
+            className="large-button secondary-light w-full"
+            onClick={() => setIsManagingFavourites(!isManagingFavourites)}
+          >
             <Heart aria-hidden size={28} />
-            Manage favourites
+            {isManagingFavourites ? "Done" : "Manage favourites"}
           </button>
+          <p className="mt-4 font-sans text-[21px] text-[var(--sage)]">
+            Pick themes Dad enjoys. We will nudge new topic choices toward these
+            within Judaism or Buddhism.
+          </p>
+          {isManagingFavourites && (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {favouriteThemeOptions.map((item) => (
+                <button
+                  key={item.id}
+                  className="favourite-chip"
+                  data-active={favouriteThemes.includes(item.id)}
+                  onClick={() => toggleFavourite(item.id)}
+                >
+                  <span>{item.label}</span>
+                  <span>{item.tradition === "both" ? "Both paths" : titleCase(item.tradition)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </SettingBlock>
 
         <SettingBlock icon={<BookOpen aria-hidden size={30} />} title="Show transcript">
@@ -995,4 +1314,8 @@ function titleCase(value: string) {
 
 function modeLabel(value: SessionMode) {
   return modes.find((item) => item.id === value)?.label || "Listen and Learn";
+}
+
+function voiceLabel(value: VoiceId) {
+  return voiceOptions.find((item) => item.id === value)?.label || "Ara";
 }

@@ -40,13 +40,55 @@ export async function ensureSchema() {
   await db`
     CREATE TABLE IF NOT EXISTS preferences (
       user_id text PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      preferred_voice text NOT NULL DEFAULT 'Kore',
-      speech_speed numeric NOT NULL DEFAULT 1.0,
+      preferred_voice text NOT NULL DEFAULT 'ara',
+      speech_speed text NOT NULL DEFAULT 'normal',
       default_mode text NOT NULL DEFAULT 'listen',
       preferred_session_length integer NOT NULL DEFAULT 5,
       show_text boolean NOT NULL DEFAULT true,
-      tradition_bias text NOT NULL DEFAULT 'balanced'
+      tradition_bias text NOT NULL DEFAULT 'balanced',
+      voice_provider text NOT NULL DEFAULT 'xai',
+      voice_id text NOT NULL DEFAULT 'ara',
+      audio_first boolean NOT NULL DEFAULT true
     )
+  `;
+
+  await db`
+    ALTER TABLE preferences
+    ALTER COLUMN preferred_voice SET DEFAULT 'ara'
+  `;
+
+  await db`
+    ALTER TABLE preferences
+    ALTER COLUMN speech_speed TYPE text
+    USING CASE
+      WHEN speech_speed::text IN ('slower', 'normal', 'faster') THEN speech_speed::text
+      WHEN speech_speed::text ~ '^[0-9.]+$' THEN CASE
+        WHEN (speech_speed::text)::numeric < 1 THEN 'slower'
+        WHEN (speech_speed::text)::numeric > 1 THEN 'faster'
+        ELSE 'normal'
+      END
+      ELSE 'normal'
+    END
+  `;
+
+  await db`
+    ALTER TABLE preferences
+    ALTER COLUMN speech_speed SET DEFAULT 'normal'
+  `;
+
+  await db`
+    ALTER TABLE preferences
+    ADD COLUMN IF NOT EXISTS voice_provider text NOT NULL DEFAULT 'xai'
+  `;
+
+  await db`
+    ALTER TABLE preferences
+    ADD COLUMN IF NOT EXISTS voice_id text NOT NULL DEFAULT 'ara'
+  `;
+
+  await db`
+    ALTER TABLE preferences
+    ADD COLUMN IF NOT EXISTS audio_first boolean NOT NULL DEFAULT true
   `;
 
   await db`
@@ -68,9 +110,42 @@ export async function ensureSchema() {
       tradition text NOT NULL,
       topic text NOT NULL,
       mode text NOT NULL,
+      lesson_script text,
+      audio_asset_id text,
+      voice_id text NOT NULL DEFAULT 'ara',
       created_at timestamptz NOT NULL DEFAULT now(),
       completed boolean NOT NULL DEFAULT false,
       enjoyment_rating integer
+    )
+  `;
+
+  await db`
+    ALTER TABLE sessions
+    ADD COLUMN IF NOT EXISTS lesson_script text
+  `;
+
+  await db`
+    ALTER TABLE sessions
+    ADD COLUMN IF NOT EXISTS audio_asset_id text
+  `;
+
+  await db`
+    ALTER TABLE sessions
+    ADD COLUMN IF NOT EXISTS voice_id text NOT NULL DEFAULT 'ara'
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS audio_assets (
+      id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      session_id text REFERENCES sessions(id) ON DELETE SET NULL,
+      tradition text NOT NULL,
+      topic text NOT NULL,
+      voice_id text NOT NULL DEFAULT 'ara',
+      script_hash text NOT NULL,
+      audio_url text NOT NULL,
+      duration_seconds integer,
+      provider text NOT NULL DEFAULT 'xai',
+      created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
 
@@ -143,13 +218,24 @@ export async function saveSession({
   await ensureSchema();
 
   await db`
-    INSERT INTO sessions (id, user_id, tradition, topic, mode, completed)
+    INSERT INTO sessions (
+      id,
+      user_id,
+      tradition,
+      topic,
+      mode,
+      lesson_script,
+      voice_id,
+      completed
+    )
     VALUES (
       ${session.id},
       ${userId},
       ${session.tradition},
       ${session.topic.title},
       ${session.mode},
+      ${session.script},
+      ${session.voiceId || "ara"},
       true
     )
     ON CONFLICT (id) DO NOTHING

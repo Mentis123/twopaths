@@ -15,9 +15,19 @@ Rules:
 - Make the session uplifting, reflective, and intellectually respectful.
 `;
 
-export function topicsPrompt(tradition: Tradition, dateLabel: string) {
+export function topicsPrompt(
+  tradition: Tradition,
+  dateLabel: string,
+  favouriteThemes: string[] = [],
+) {
+  const favouriteLine =
+    favouriteThemes.length > 0
+      ? `Caregiver-favoured topic themes to weave in when natural: ${favouriteThemes.join(", ")}.`
+      : "No caregiver-favoured topic themes are selected yet.";
+
   return `
 For ${dateLabel}, generate exactly 4 daily topic options for the ${tradition} path in the Two Paths app.
+${favouriteLine}
 
 Return JSON only in this shape:
 {
@@ -65,8 +75,8 @@ Mode direction: ${modeInstruction}
 Return JSON only in this shape:
 {
   "title": "clear session title",
-  "script": "warm narration, 260 to 380 words, in short paragraphs",
-  "simplifiedScript": "same idea in 120 to 180 words, even simpler and calmer",
+  "script": "voice-ready narration, 320 to 560 words, short paragraphs, occasional [pause] tags only",
+  "simplifiedScript": "same idea in 140 to 220 words, even simpler and calmer, voice-ready",
   "segments": ["short segment 1", "short segment 2", "short segment 3"],
   "question": {
     "prompt": "gentle multiple choice question",
@@ -87,5 +97,6 @@ Return JSON only in this shape:
 
 The question must not feel like a test and must not mention score, memory, decline, symptoms, or performance.
 The title and script must make the selected mode obvious without using clinical or school-like wording.
+Write the script for spoken narration: natural pacing, intelligent but plain language, no childish tone, no dense academic phrasing, no theatrical tags except occasional [pause].
 `;
 }
