@@ -16,6 +16,7 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  Sparkles,
   Timer,
   Users,
   Volume2,
@@ -96,7 +97,7 @@ export default function Home() {
   const [screen, setScreen] = useState<Screen>("home");
   const [tradition, setTradition] = useState<Tradition | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [topicSource, setTopicSource] = useState<"gemini" | "fallback">("fallback");
+  const [topicSource, setTopicSource] = useState<"gemini" | "fallback" | "trove">("trove");
   const [topicsPersisted, setTopicsPersisted] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [lesson, setLesson] = useState<LessonSession | null>(null);
@@ -216,7 +217,10 @@ export default function Home() {
     }
   }, [favouriteThemes, speechSpeed, traditionBias, voiceId]);
 
-  async function loadTopics(nextTradition: Tradition) {
+  async function loadTopics(
+    nextTradition: Tradition,
+    options: { fresh?: boolean } = {},
+  ) {
     setTradition(nextTradition);
     setScreen("topics");
     setIsLoadingTopics(true);
@@ -232,6 +236,7 @@ export default function Home() {
         body: JSON.stringify({
           tradition: nextTradition,
           favouriteThemes: favouriteThemeLabels(nextTradition),
+          fresh: options.fresh,
         }),
       });
 
@@ -306,16 +311,18 @@ export default function Home() {
 
   function surpriseMe() {
     if (traditionBias === "judaism") {
-      loadTopics("judaism");
+      loadTopics("judaism", { fresh: true });
       return;
     }
 
     if (traditionBias === "buddhism") {
-      loadTopics("buddhism");
+      loadTopics("buddhism", { fresh: true });
       return;
     }
 
-    loadTopics(Math.random() > 0.5 ? "judaism" : "buddhism");
+    const choices: Tradition[] = ["judaism", "buddhism", "both"];
+    const next = choices[Math.floor(Math.random() * choices.length)];
+    loadTopics(next, { fresh: true });
   }
 
   function favouriteThemeLabels(nextTradition: Tradition) {
@@ -530,7 +537,7 @@ export default function Home() {
             mode={mode}
             setMode={setMode}
             onBack={() => setScreen("home")}
-            onRefresh={() => loadTopics(tradition)}
+            onRefresh={() => loadTopics(tradition, { fresh: true })}
             onChooseTopic={chooseTopic}
           />
         )}
@@ -649,19 +656,14 @@ function HomeScreen({
           title="Choose Buddhism"
         />
         <button
-          className="landing-hotspot landing-hotspot-dot landing-hotspot-judaism-dot"
-          onClick={() => onChoose("judaism")}
-          aria-hidden="true"
-          tabIndex={-1}
-          title="Choose Judaism"
-        />
-        <button
-          className="landing-hotspot landing-hotspot-dot landing-hotspot-buddhism-dot"
-          onClick={() => onChoose("buddhism")}
-          aria-hidden="true"
-          tabIndex={-1}
-          title="Choose Buddhism"
-        />
+          className="landing-both-button"
+          onClick={() => onChoose("both")}
+          aria-label="Hold both paths together"
+          title="Both paths"
+        >
+          <span aria-hidden className="landing-both-mark" />
+          <span className="landing-both-label">Both</span>
+        </button>
         <button
           className="landing-hotspot landing-hotspot-surprise"
           onClick={onSurprise}
@@ -688,7 +690,7 @@ function TopicsScreen({
 }: {
   tradition: Tradition;
   topics: Topic[];
-  topicSource: "gemini" | "fallback";
+  topicSource: "gemini" | "fallback" | "trove";
   persisted: boolean;
   isLoading: boolean;
   error: string | null;
@@ -710,7 +712,7 @@ function TopicsScreen({
 
       <div className="mx-auto mt-6 max-w-4xl text-center">
         <h1 className="text-[44px] font-bold leading-tight text-[var(--navy)]">
-          {titleCase(tradition)} - Today&apos;s reflections
+          {pathLabel(tradition)} &mdash; Today&apos;s reflections
         </h1>
         <p className="mt-2 font-sans text-[24px] text-[var(--ink)]">
           Choose a topic to explore and listen.
@@ -751,15 +753,34 @@ function TopicsScreen({
             {topics.map((topic) => (
               <article key={topic.id} className="topic-card flex flex-col">
                 <div className="topic-visual" data-tradition={tradition}>
-                  <TopicIcon topic={topic} />
+                  {topic.imageUrl ? (
+                    <img
+                      src={topic.imageUrl}
+                      alt=""
+                      className="topic-visual-image"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <TopicIcon topic={topic} />
+                  )}
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h2 className="text-[28px] font-bold leading-tight text-[var(--navy)]">
                     {topic.title}
                   </h2>
+                  {topic.cluster && (
+                    <p className="mt-2 font-sans text-[16px] font-bold uppercase tracking-[0.12em] text-[var(--clay)]">
+                      {topic.cluster}
+                    </p>
+                  )}
                   <p className="mt-3 flex-1 font-sans text-[21px] leading-snug">
                     {topic.summary}
                   </p>
+                  {topic.keyLine && (
+                    <p className="topic-keyline mt-4 font-sans text-[19px] leading-snug">
+                      {topic.keyLine}
+                    </p>
+                  )}
                   <div className="mt-5 grid gap-3">
                     <button
                       className="large-button secondary-light w-full"
@@ -769,9 +790,7 @@ function TopicsScreen({
                       Listen now
                     </button>
                     <button
-                      className={`large-button w-full ${
-                        tradition === "judaism" ? "primary-navy" : "primary-gold"
-                      }`}
+                      className={`large-button w-full ${primaryPathClass(tradition)}`}
                       onClick={() => onChooseTopic(topic, false)}
                     >
                       <Check aria-hidden size={28} />
@@ -795,7 +814,11 @@ function TopicsScreen({
           </div>
 
           <p className="mt-5 text-center font-sans text-[20px] text-[var(--sage)]">
-            {topicSource === "gemini" ? "Fresh reflections" : "Gentle starter reflections"}
+            {topicSource === "trove"
+              ? "Researched trove reflections"
+              : topicSource === "gemini"
+                ? "Fresh reflections"
+                : "Gentle starter reflections"}
             {persisted ? " saved for history." : "."}
           </p>
         </>
@@ -862,12 +885,18 @@ function LessonScreen({
           {lesson?.title || topic?.title || "Preparing today's lesson"}
         </h1>
 
-        <div className="lesson-art mt-7 flex items-center justify-center">
+        <div
+          className="lesson-art mt-7 flex items-center justify-center"
+          data-has-image={Boolean(topic?.imageUrl)}
+        >
+          {topic?.imageUrl && (
+            <img src={topic.imageUrl} alt="" className="lesson-art-image" />
+          )}
           {isLoading || isLoadingAudio ? (
-            <RefreshCw className="animate-spin text-[var(--gold)]" size={66} />
+            <RefreshCw className="relative z-10 animate-spin text-[var(--gold)]" size={66} />
           ) : (
             <button
-              className="large-button primary-navy min-h-[104px] min-w-[104px] rounded-full"
+              className="large-button primary-navy relative z-10 min-h-[104px] min-w-[104px] rounded-full"
               onClick={isPlaying ? onPause : onPlay}
             >
               {isPlaying ? <Pause aria-hidden size={44} /> : <Play aria-hidden size={44} />}
@@ -1270,12 +1299,24 @@ function PathMark({ tradition }: { tradition: Tradition }) {
     <div className="flex min-h-[64px] items-center gap-3 rounded-full bg-white/55 px-5 text-[var(--navy)] shadow-sm">
       {tradition === "judaism" ? (
         <span className="magen scale-[0.45]" aria-hidden />
+      ) : tradition === "both" ? (
+        <Sparkles aria-hidden size={42} strokeWidth={1.5} />
       ) : (
         <Flower2 aria-hidden size={42} strokeWidth={1.5} />
       )}
-      <span className="font-sans text-[24px] font-bold">{titleCase(tradition)}</span>
+      <span className="font-sans text-[24px] font-bold">{pathLabel(tradition)}</span>
     </div>
   );
+}
+
+function pathLabel(tradition: Tradition) {
+  return tradition === "both" ? "Both paths" : titleCase(tradition);
+}
+
+function primaryPathClass(tradition: Tradition) {
+  if (tradition === "judaism") return "primary-navy";
+  if (tradition === "both") return "primary-bridge";
+  return "primary-gold";
 }
 
 function TopicIcon({ topic }: { topic: Topic }) {

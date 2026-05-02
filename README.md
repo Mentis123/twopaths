@@ -24,7 +24,7 @@ Optional:
 
 ```bash
 DATABASE_URL=your_neon_pooled_connection_string
-GEMINI_TEXT_MODEL=gemini-3-flash-preview
+GEMINI_TEXT_MODEL=gemini-2.5-flash
 ```
 
 Do not prefix either API key with `NEXT_PUBLIC_`; the app only reads them inside server route handlers. The browser calls `/api/voice/tts`, never xAI directly.

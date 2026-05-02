@@ -3,6 +3,7 @@ import { fallbackLesson } from "@/lib/fallbacks";
 import { generateJson, isGeminiConfigured } from "@/lib/gemini";
 import { saveSession } from "@/lib/db";
 import { lessonPrompt } from "@/lib/prompts";
+import { troveLesson } from "@/lib/trove";
 import type {
   LessonSession,
   QuizOption,
@@ -40,7 +41,7 @@ type GeneratedOption = NonNullable<
   NonNullable<GeneratedLesson["question"]>["options"]
 >[number];
 
-const validTraditions = new Set(["judaism", "buddhism"]);
+const validTraditions = new Set(["judaism", "buddhism", "both"]);
 const validModes = new Set(["listen", "story", "quiz"]);
 
 export async function POST(request: Request) {
@@ -66,6 +67,37 @@ export async function POST(request: Request) {
   const mode = body.mode && validModes.has(body.mode) ? body.mode : "listen";
   const voiceId = isVoiceId(body.voiceId) ? body.voiceId : "ara";
   const minutes = clampMinutes(body.minutes);
+
+  // Try the curated trove first. When the topic is one of the 31 hand-written
+  // items it carries an authored script + per-topic distractors + sources,
+  // and we skip Gemini entirely (faster, more consistent, and the writing
+  // is what we want — Gemini is the fallback, not the primary).
+  const troveSession = troveLesson({ topic: body.topic, mode });
+
+  if (troveSession) {
+    const withMeta: LessonSession = {
+      ...troveSession,
+      tradition: body.tradition,
+      audioUrl: null,
+      audioAvailable: false,
+      voiceId,
+      narrationProvider: "xai",
+    };
+
+    const persistedTrove = await saveSession({
+      session: withMeta,
+      userId: body.userId || "dad",
+    }).catch((error) => {
+      console.error("Session persistence failed", error);
+      return false;
+    });
+
+    return Response.json({
+      ...withMeta,
+      persisted: persistedTrove,
+    } satisfies LessonSession);
+  }
+
   const fallback = fallbackLesson({
     tradition: body.tradition,
     topic: body.topic,

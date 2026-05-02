@@ -3,7 +3,7 @@ import type { Tradition, VoiceId } from "@/lib/types";
 
 export const maxDuration = 30;
 
-const validTraditions = new Set(["judaism", "buddhism"]);
+const validTraditions = new Set(["judaism", "buddhism", "both"]);
 const validSpeeds = new Set(["slower", "normal", "faster"]);
 
 type TtsRequestBody = {

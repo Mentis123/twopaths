@@ -1,6 +1,6 @@
 const unsafePatterns: Array<{ pattern: RegExp; reason: string }> = [
   {
-    pattern: /\b(dementia|parkinson'?s|patient|diagnos(?:is|e|tic)|therapy|clinical|cognitive\s+test|memory\s+test|decline)\b/i,
+    pattern: /\b(dementia|alzheimer'?s|parkinson'?s|cognitive\s+(?:test|decline|impairment)|memory\s+test|clinical\s+(?:trial|setting|diagnosis))\b/i,
     reason: "clinical or cognitive-testing language",
   },
   {
