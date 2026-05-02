@@ -877,6 +877,30 @@ function TopicsScreen({
   onPreview: (topic: Topic) => void;
   previewingTopicId: string | null;
 }) {
+  const [armedTopicId, setArmedTopicId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!armedTopicId) return;
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target || !target.closest('[data-armable="topic"]')) {
+        setArmedTopicId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [armedTopicId]);
+
+  function handleTileClick(topic: Topic) {
+    if (armedTopicId === topic.id) {
+      setArmedTopicId(null);
+      onChooseTopic(topic, false);
+      return;
+    }
+    setArmedTopicId(topic.id);
+    onPreview(topic);
+  }
+
   return (
     <section className="page-frame topics-square" aria-label={`${pathLabel(tradition)} reflections for today`}>
       <header className="topics-square-header">
@@ -916,8 +940,8 @@ function TopicsScreen({
               topic={topic}
               tradition={tradition}
               isPreviewing={previewingTopicId === topic.id}
-              onChoose={() => onChooseTopic(topic, false)}
-              onPreview={() => onPreview(topic)}
+              isArmed={armedTopicId === topic.id}
+              onActivate={() => handleTileClick(topic)}
             />
           ))
         )}
@@ -952,30 +976,42 @@ function TopicTile({
   topic,
   tradition,
   isPreviewing,
-  onChoose,
-  onPreview,
+  isArmed,
+  onActivate,
 }: {
   topic: Topic;
   tradition: Tradition;
   isPreviewing: boolean;
-  onChoose: () => void;
-  onPreview: () => void;
+  isArmed: boolean;
+  onActivate: () => void;
 }) {
   return (
     <div
       className="topic-tile"
       data-tradition={tradition}
+      data-armable="topic"
+      data-armed={isArmed}
       role="button"
       tabIndex={0}
-      onClick={onChoose}
+      onClick={onActivate}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onChoose();
+          onActivate();
         }
       }}
-      aria-label={`Open ${topic.title}`}
+      aria-label={
+        isArmed
+          ? `Press again to open ${topic.title}`
+          : `Hear and then open ${topic.title}`
+      }
+      aria-pressed={isArmed}
     >
+      {isArmed && (
+        <div className="armed-banner" aria-hidden>
+          Click again to choose
+        </div>
+      )}
       <h2 className="topic-tile-title">{topic.title}</h2>
       <div className="topic-tile-image">
         {topic.imageUrl ? (
@@ -990,24 +1026,13 @@ function TopicTile({
         )}
         <p className="topic-tile-summary">{topic.summary}</p>
       </div>
-      <button
-        type="button"
+      <span
         className="topic-tile-speaker"
         data-active={isPreviewing}
-        onClick={(event) => {
-          event.stopPropagation();
-          onPreview();
-        }}
-        onKeyDown={(event) => event.stopPropagation()}
-        aria-label={
-          isPreviewing
-            ? `Stop preview of ${topic.title}`
-            : `Listen to a short preview of ${topic.title}`
-        }
-        title={isPreviewing ? "Stop preview" : "Hear preview"}
+        aria-hidden
       >
-        {isPreviewing ? <Pause aria-hidden size={18} /> : <Volume2 aria-hidden size={18} />}
-      </button>
+        {isPreviewing ? <Pause size={18} /> : <Volume2 size={18} />}
+      </span>
     </div>
   );
 }
@@ -1497,6 +1522,29 @@ function QuestionScreen({
   onBack: () => void;
 }) {
   const answer = lesson.question.options.find((option) => option.id === selectedAnswer);
+  const [armedAnswerId, setArmedAnswerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!armedAnswerId) return;
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target || !target.closest('[data-armable="answer"]')) {
+        setArmedAnswerId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [armedAnswerId]);
+
+  function handleAnswerClick(option: { id: string; text: string; textAudioUrl?: string }) {
+    if (armedAnswerId === option.id) {
+      setArmedAnswerId(null);
+      onSelectAnswer(option.id);
+      return;
+    }
+    setArmedAnswerId(option.id);
+    onSpeak(option.text, option.textAudioUrl);
+  }
 
   return (
     <section className="page-frame sacred-panel">
@@ -1530,30 +1578,29 @@ function QuestionScreen({
                 key={option.id}
                 className="answer-card p-5 text-left font-sans text-[24px] font-bold"
                 data-selected={selectedAnswer === option.id}
+                data-armable="answer"
+                data-armed={armedAnswerId === option.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => onSelectAnswer(option.id)}
+                aria-pressed={armedAnswerId === option.id}
+                onClick={() => handleAnswerClick(option)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    onSelectAnswer(option.id);
+                    handleAnswerClick(option);
                   }
                 }}
               >
+                {armedAnswerId === option.id && (
+                  <div className="armed-banner" aria-hidden>
+                    Click again to choose
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-3">
                   <span className="flex-1">{option.text}</span>
-                  <button
-                    type="button"
-                    className="answer-speak"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSpeak(option.text, option.textAudioUrl);
-                    }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    aria-label={`Hear option: ${option.text}`}
-                  >
-                    <Volume2 aria-hidden size={18} />
-                  </button>
+                  <span className="answer-speak" aria-hidden>
+                    <Volume2 size={18} />
+                  </span>
                   {selectedAnswer === option.id && <Check aria-hidden size={28} />}
                 </div>
               </div>

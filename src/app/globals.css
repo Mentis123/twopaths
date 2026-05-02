@@ -623,6 +623,49 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
+.topic-tile[data-armed="true"] {
+  border-color: #1f9a4a;
+  padding-top: 38px;
+  box-shadow:
+    0 0 0 4px rgba(31, 154, 74, 0.55),
+    0 18px 38px rgba(0, 29, 61, 0.20);
+}
+
+.answer-card[data-armed="true"] {
+  border-color: #1f9a4a;
+  padding-top: 44px;
+  box-shadow: 0 0 0 4px rgba(31, 154, 74, 0.55);
+}
+
+.armed-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
+  background: #1f9a4a;
+  color: #fffaf0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  z-index: 6;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  pointer-events: none;
+}
+
+.answer-card {
+  position: relative;
+}
+
+.answer-card .armed-banner {
+  font-size: 13px;
+  padding: 5px 8px;
+}
+
 .topic-tile-title {
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(15px, 1.55vw, 19px);
