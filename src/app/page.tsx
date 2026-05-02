@@ -12,18 +12,16 @@ import {
   History,
   Leaf,
   Lightbulb,
-  Menu,
   Pause,
   Play,
   RefreshCw,
   RotateCcw,
-  Settings,
-  Sparkles,
   Timer,
   Users,
   Volume2,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type {
@@ -392,56 +390,47 @@ function HomeScreen({
   onSettings: () => void;
 }) {
   return (
-    <section className="sacred-panel relative overflow-hidden rounded-[18px] bg-[var(--navy)] p-5 text-center">
-      <div className="home-actions">
-        <button className="large-button icon-pill" aria-label="Menu">
-          <Menu aria-hidden size={34} />
-          Menu
-        </button>
-        <button className="large-button icon-pill" onClick={onSettings}>
-          <Settings aria-hidden size={34} />
-          Settings
-        </button>
-      </div>
-
-      <div className="home-content py-16">
-        <p className="mb-4 font-sans text-[24px] font-bold uppercase tracking-[0.18em] text-[var(--gold)]">
-          Two Paths
-        </p>
-        <div className="path-disc" aria-label="Choose a spiritual path">
-          <div className="path-disc-texture" />
-          <button
-            className="path-hotspot path-hotspot-left"
-            onClick={() => onChoose("judaism")}
-          >
-            <span className="magen" aria-hidden />
-            <span className="path-title">Judaism</span>
-            <span className="path-subtitle">
-              Explore wisdom, tradition, and stories.
-            </span>
-          </button>
-          <button
-            className="path-hotspot path-hotspot-right"
-            onClick={() => onChoose("buddhism")}
-          >
-            <Flower2 aria-hidden size={86} strokeWidth={1.4} />
-            <span className="path-title">Buddhism</span>
-            <span className="path-subtitle">
-              Explore wisdom, mindfulness, and compassion.
-            </span>
-          </button>
-        </div>
-
+    <section className="landing-panel" aria-label="Two Paths home">
+      <div className="landing-map">
+        <Image
+          src="/two-paths-landing.png"
+          alt="Two Paths home artwork with a Judaism path on the left and a Buddhism path on the right."
+          width={1254}
+          height={1254}
+          priority
+          sizes="(max-width: 640px) calc(100vw - 20px), (max-width: 900px) calc(100vw - 32px), 860px"
+          className="landing-artwork"
+        />
         <button
-          className="home-surprise large-button primary-gold mx-auto mt-[-38px] min-h-[82px] px-12"
+          className="landing-hotspot landing-hotspot-menu"
+          onClick={onSettings}
+          aria-label="Open menu"
+          title="Open menu"
+        />
+        <button
+          className="landing-hotspot landing-hotspot-settings"
+          onClick={onSettings}
+          aria-label="Open settings"
+          title="Open settings"
+        />
+        <button
+          className="landing-hotspot landing-hotspot-judaism"
+          onClick={() => onChoose("judaism")}
+          aria-label="Choose Judaism"
+          title="Choose Judaism"
+        />
+        <button
+          className="landing-hotspot landing-hotspot-buddhism"
+          onClick={() => onChoose("buddhism")}
+          aria-label="Choose Buddhism"
+          title="Choose Buddhism"
+        />
+        <button
+          className="landing-hotspot landing-hotspot-surprise"
           onClick={onSurprise}
-        >
-          <Sparkles aria-hidden size={38} />
-          Surprise me today
-        </button>
-        <p className="mt-8 font-sans text-[22px] font-bold uppercase tracking-[0.2em] text-[var(--gold)]">
-          Two paths. One journey within.
-        </p>
+          aria-label="Surprise me today"
+          title="Surprise me today"
+        />
       </div>
     </section>
   );
