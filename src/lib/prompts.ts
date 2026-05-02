@@ -16,8 +16,13 @@ Rules:
 `;
 
 export function topicsPrompt(tradition: Tradition, dateLabel: string) {
+  const pathLabel =
+    tradition === "both"
+      ? "Both Paths, with Judaism and Buddhism kept distinct but thoughtfully compared"
+      : `the ${tradition} path`;
+
   return `
-For ${dateLabel}, generate exactly 4 daily topic options for the ${tradition} path in the Two Paths app.
+For ${dateLabel}, generate exactly 4 daily topic options for ${pathLabel} in the Two Paths app.
 
 Return JSON only in this shape:
 {
@@ -26,12 +31,13 @@ Return JSON only in this shape:
       "title": "short title",
       "summary": "one calm sentence",
       "difficulty": "gentle",
-      "visual": "one of: candles, teacher, scroll, seedling, stones, mountain, tree, lotus"
+      "visual": "one of: candles, teacher, scroll, seedling, stones, mountain, tree, lotus, bridge, compass, gate, river"
     }
   ]
 }
 
 The topics should be varied. Prefer beautiful, accessible ideas, short teaching stories, compassion, rest, memory, gratitude, patience, wisdom, or daily practice.
+If the path is Both Paths, compare carefully without saying the traditions are the same.
 `;
 }
 
@@ -48,8 +54,13 @@ export function lessonPrompt({
   mode: SessionMode;
   minutes: number;
 }) {
+  const pathLabel =
+    tradition === "both"
+      ? "Both Paths, carefully comparing Judaism and Buddhism without flattening either tradition"
+      : `the ${tradition} path`;
+
   return `
-Create a ${minutes}-minute ${mode} session for the ${tradition} path.
+Create a ${minutes}-minute ${mode} session for ${pathLabel}.
 
 Topic: ${topicTitle}
 Topic summary: ${topicSummary}

@@ -23,8 +23,8 @@ Optional:
 
 ```bash
 DATABASE_URL=your_neon_pooled_connection_string
-GEMINI_TEXT_MODEL=gemini-3-flash-preview
-GEMINI_TTS_MODEL=gemini-3.1-flash-tts-preview
+GEMINI_TEXT_MODEL=gemini-2.5-flash
+GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 ```
 
 Do not prefix the Gemini key with `NEXT_PUBLIC_`; the app only reads it inside server route handlers.

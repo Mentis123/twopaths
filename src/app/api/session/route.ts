@@ -3,6 +3,7 @@ import { fallbackLesson } from "@/lib/fallbacks";
 import { generateJson, isGeminiConfigured, synthesizeNarration } from "@/lib/gemini";
 import { saveSession } from "@/lib/db";
 import { lessonPrompt } from "@/lib/prompts";
+import { troveLesson } from "@/lib/trove";
 import type {
   LessonSession,
   QuizOption,
@@ -34,11 +35,7 @@ type GeneratedLesson = {
   };
 };
 
-type GeneratedOption = NonNullable<
-  NonNullable<GeneratedLesson["question"]>["options"]
->[number];
-
-const validTraditions = new Set(["judaism", "buddhism"]);
+const validTraditions = new Set(["judaism", "buddhism", "both"]);
 const validModes = new Set(["listen", "story", "quiz"]);
 
 export async function POST(request: Request) {
@@ -62,6 +59,38 @@ export async function POST(request: Request) {
 
   const mode = body.mode && validModes.has(body.mode) ? body.mode : "listen";
   const minutes = clampMinutes(body.minutes);
+  const researchedLesson = troveLesson({
+    topic: body.topic,
+    mode,
+  });
+
+  if (researchedLesson) {
+    const audioUrl = await synthesizeNarration({
+      script: researchedLesson.script,
+      voiceName: body.voiceName || "Kore",
+      speechSpeed: body.speechSpeed || "normal",
+    });
+
+    const withAudio: LessonSession = {
+      ...researchedLesson,
+      audioUrl,
+      audioAvailable: Boolean(audioUrl),
+    };
+
+    const persisted = await saveSession({
+      session: withAudio,
+      userId: body.userId || "dad",
+    }).catch((error) => {
+      console.error("Session persistence failed", error);
+      return false;
+    });
+
+    return Response.json({
+      ...withAudio,
+      persisted,
+    } satisfies LessonSession);
+  }
+
   const fallback = fallbackLesson({
     tradition: body.tradition,
     topic: body.topic,
@@ -157,7 +186,13 @@ function normalizeLesson({
 }
 
 function normalizeOptions(
-  generated: GeneratedOption[] | undefined,
+  generated:
+    | Array<{
+        text?: string;
+        isCorrect?: boolean;
+        response?: string;
+      }>
+    | undefined,
   fallback: QuizOption[],
 ) {
   const options = Array.isArray(generated)

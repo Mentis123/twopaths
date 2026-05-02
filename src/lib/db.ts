@@ -118,7 +118,13 @@ export async function saveTopics(topics: Topic[]) {
         ${topic.title},
         ${topic.summary},
         ${topic.difficulty},
-        ${JSON.stringify({ visual: topic.visual })}::jsonb
+        ${JSON.stringify({
+          visual: topic.visual,
+          cluster: topic.cluster,
+          keyLine: topic.keyLine,
+          sourceTitle: topic.sourceTitle,
+          researchId: topic.researchId,
+        })}::jsonb
       )
       ON CONFLICT (id) DO NOTHING
     `;
@@ -158,6 +164,71 @@ export async function saveSession({
   return true;
 }
 
+export type Preferences = {
+  preferred_voice: string;
+  speech_speed: number;
+  default_mode: string;
+  preferred_session_length: number;
+  show_text: boolean;
+  tradition_bias: string;
+};
+
+export async function getPreferences(userId = "dad"): Promise<Preferences | null> {
+  const db = sql();
+
+  if (!db) {
+    return null;
+  }
+
+  await ensureSchema();
+
+  const rows = (await db`
+    SELECT preferred_voice, speech_speed, default_mode, preferred_session_length, show_text, tradition_bias
+    FROM preferences
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `) as unknown as Preferences[];
+
+  return rows[0] ?? null;
+}
+
+export async function savePreferences(
+  userId: string,
+  prefs: Partial<Preferences>,
+): Promise<boolean> {
+  const db = sql();
+
+  if (!db) {
+    return false;
+  }
+
+  await ensureSchema();
+
+  const current = (await getPreferences(userId)) ?? {
+    preferred_voice: "Kore",
+    speech_speed: 1.0,
+    default_mode: "listen",
+    preferred_session_length: 5,
+    show_text: true,
+    tradition_bias: "balanced",
+  };
+
+  const merged = { ...current, ...prefs };
+
+  await db`
+    UPDATE preferences SET
+      preferred_voice = ${merged.preferred_voice},
+      speech_speed = ${merged.speech_speed},
+      default_mode = ${merged.default_mode},
+      preferred_session_length = ${merged.preferred_session_length},
+      show_text = ${merged.show_text},
+      tradition_bias = ${merged.tradition_bias}
+    WHERE user_id = ${userId}
+  `;
+
+  return true;
+}
+
 export async function recentSessions(userId = "dad") {
   const db = sql();
 
@@ -167,7 +238,7 @@ export async function recentSessions(userId = "dad") {
 
   await ensureSchema();
 
-  const rows = await db`
+  const sessions = await db`
     SELECT id, tradition, topic, mode, created_at
     FROM sessions
     WHERE user_id = ${userId}
@@ -175,11 +246,11 @@ export async function recentSessions(userId = "dad") {
     LIMIT 6
   `;
 
-  return rows as Array<{
+  return sessions as {
     id: string;
     tradition: Tradition;
     topic: string;
     mode: string;
     created_at: string;
-  }>;
+  }[];
 }

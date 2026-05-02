@@ -20,11 +20,11 @@ function geminiClient() {
 }
 
 export function textModel() {
-  return process.env.GEMINI_TEXT_MODEL || "gemini-3-flash-preview";
+  return process.env.GEMINI_TEXT_MODEL || "gemini-2.5-flash";
 }
 
 export function ttsModel() {
-  return process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
+  return process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
 }
 
 export async function generateJson<T>(prompt: string): Promise<T | null> {

@@ -36,6 +36,7 @@ import type {
 
 type Screen = "home" | "topics" | "lesson" | "question" | "settings";
 type SpeechSpeed = "slower" | "normal" | "faster";
+type TraditionBias = Tradition | "balanced";
 
 type RecentSession = {
   id: string;
@@ -55,7 +56,9 @@ export default function Home() {
   const [screen, setScreen] = useState<Screen>("home");
   const [tradition, setTradition] = useState<Tradition | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [topicSource, setTopicSource] = useState<"gemini" | "fallback">("fallback");
+  const [topicSource, setTopicSource] = useState<"gemini" | "fallback" | "trove">(
+    "trove",
+  );
   const [topicsPersisted, setTopicsPersisted] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [lesson, setLesson] = useState<LessonSession | null>(null);
@@ -69,9 +72,7 @@ export default function Home() {
   const [hintVisible, setHintVisible] = useState(false);
   const [sessionMinutes, setSessionMinutes] = useState(5);
   const [speechSpeed, setSpeechSpeed] = useState<SpeechSpeed>("normal");
-  const [traditionBias, setTraditionBias] = useState<"judaism" | "buddhism" | "balanced">(
-    "balanced",
-  );
+  const [traditionBias, setTraditionBias] = useState<TraditionBias>("balanced");
   const [showTranscript, setShowTranscript] = useState(true);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
 
@@ -86,12 +87,66 @@ export default function Home() {
     return showSimplified ? lesson.simplifiedScript : lesson.script;
   }, [lesson, showSimplified]);
 
+  const prefsHydratedRef = useRef(false);
+
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
       window.speechSynthesis?.cancel();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/preferences?userId=dad")
+      .then((response) => response.json())
+      .then((data: { preferences?: Record<string, unknown> }) => {
+        if (cancelled || !data.preferences) {
+          return;
+        }
+        const p = data.preferences;
+        if (typeof p.preferred_session_length === "number") {
+          setSessionMinutes(p.preferred_session_length);
+        }
+        if (typeof p.speech_speed === "number") {
+          setSpeechSpeed(
+            p.speech_speed < 0.85 ? "slower" : p.speech_speed > 1.05 ? "faster" : "normal",
+          );
+        }
+        if (typeof p.tradition_bias === "string") {
+          setTraditionBias(p.tradition_bias as TraditionBias);
+        }
+        if (typeof p.show_text === "boolean") {
+          setShowTranscript(p.show_text);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        prefsHydratedRef.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!prefsHydratedRef.current) {
+      return;
+    }
+    const speedNumber =
+      speechSpeed === "slower" ? 0.78 : speechSpeed === "faster" ? 1.08 : 0.92;
+    fetch("/api/preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: "dad",
+        preferred_session_length: sessionMinutes,
+        speech_speed: speedNumber,
+        tradition_bias: traditionBias,
+        show_text: showTranscript,
+      }),
+    }).catch(() => {});
+  }, [sessionMinutes, speechSpeed, traditionBias, showTranscript]);
 
   useEffect(() => {
     audioRef.current?.pause();
@@ -112,7 +167,10 @@ export default function Home() {
     };
   }, [lesson?.audioUrl]);
 
-  async function loadTopics(nextTradition: Tradition) {
+  async function loadTopics(
+    nextTradition: Tradition,
+    options: { autoStart?: boolean; fresh?: boolean } = {},
+  ) {
     setTradition(nextTradition);
     setScreen("topics");
     setIsLoadingTopics(true);
@@ -125,7 +183,7 @@ export default function Home() {
       const response = await fetch("/api/topics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tradition: nextTradition }),
+        body: JSON.stringify({ tradition: nextTradition, fresh: options.fresh }),
       });
 
       if (!response.ok) {
@@ -136,6 +194,11 @@ export default function Home() {
       setTopics(data.topics);
       setTopicSource(data.generatedBy);
       setTopicsPersisted(data.persisted);
+
+      if (options.autoStart && data.topics.length > 0) {
+        const nextTopic = data.topics[Math.floor(Math.random() * data.topics.length)];
+        await chooseTopic(nextTopic);
+      }
     } catch {
       setError("The topic well is quiet for a moment. Try again.");
       setTopics([]);
@@ -194,17 +257,13 @@ export default function Home() {
   }
 
   function surpriseMe() {
-    if (traditionBias === "judaism") {
-      loadTopics("judaism");
-      return;
-    }
+    const choices: Tradition[] =
+      traditionBias === "balanced"
+        ? ["judaism", "buddhism", "both"]
+        : [traditionBias];
+    const nextTradition = choices[Math.floor(Math.random() * choices.length)];
 
-    if (traditionBias === "buddhism") {
-      loadTopics("buddhism");
-      return;
-    }
-
-    loadTopics(Math.random() > 0.5 ? "judaism" : "buddhism");
+    loadTopics(nextTradition, { autoStart: true, fresh: true });
   }
 
   function stopAudio() {
@@ -315,7 +374,7 @@ export default function Home() {
             mode={mode}
             setMode={setMode}
             onBack={() => setScreen("home")}
-            onRefresh={() => loadTopics(tradition)}
+            onRefresh={() => loadTopics(tradition, { fresh: true })}
             onChooseTopic={chooseTopic}
           />
         )}
@@ -429,6 +488,15 @@ function HomeScreen({
               Explore wisdom, mindfulness, and compassion.
             </span>
           </button>
+          <button
+            className="path-bridge-button"
+            onClick={() => onChoose("both")}
+            aria-label="Choose both paths"
+          >
+            <Sparkles aria-hidden size={34} />
+            <span className="path-bridge-title">Both</span>
+            <span className="path-bridge-subtitle">Hold them side by side</span>
+          </button>
         </div>
 
         <button
@@ -436,7 +504,7 @@ function HomeScreen({
           onClick={onSurprise}
         >
           <Sparkles aria-hidden size={38} />
-          Surprise me today
+          Shuffle me into a lesson
         </button>
         <p className="mt-8 font-sans text-[22px] font-bold uppercase tracking-[0.2em] text-[var(--gold)]">
           Two paths. One journey within.
@@ -461,7 +529,7 @@ function TopicsScreen({
 }: {
   tradition: Tradition;
   topics: Topic[];
-  topicSource: "gemini" | "fallback";
+  topicSource: "gemini" | "fallback" | "trove";
   persisted: boolean;
   isLoading: boolean;
   error: string | null;
@@ -483,7 +551,7 @@ function TopicsScreen({
 
       <div className="mx-auto mt-6 max-w-4xl text-center">
         <h1 className="text-[44px] font-bold leading-tight text-[var(--navy)]">
-          {titleCase(tradition)} - Today&apos;s reflections
+          {pathLabel(tradition)} - Today&apos;s reflections
         </h1>
         <p className="mt-2 font-sans text-[24px] text-[var(--ink)]">
           Choose a topic to explore and listen.
@@ -524,15 +592,34 @@ function TopicsScreen({
             {topics.map((topic) => (
               <article key={topic.id} className="topic-card flex flex-col">
                 <div className="topic-visual" data-tradition={tradition}>
-                  <TopicIcon topic={topic} />
+                  {topic.imageUrl ? (
+                    <img
+                      src={topic.imageUrl}
+                      alt=""
+                      className="topic-visual-image"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <TopicIcon topic={topic} />
+                  )}
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h2 className="text-[28px] font-bold leading-tight text-[var(--navy)]">
                     {topic.title}
                   </h2>
+                  {topic.cluster && (
+                    <p className="mt-2 font-sans text-[16px] font-bold uppercase tracking-[0.12em] text-[var(--clay)]">
+                      {topic.cluster}
+                    </p>
+                  )}
                   <p className="mt-3 flex-1 font-sans text-[21px] leading-snug">
                     {topic.summary}
                   </p>
+                  {topic.keyLine && (
+                    <p className="topic-keyline mt-4 font-sans text-[19px] leading-snug">
+                      {topic.keyLine}
+                    </p>
+                  )}
                   <div className="mt-5 grid gap-3">
                     <button
                       className="large-button secondary-light w-full"
@@ -542,9 +629,7 @@ function TopicsScreen({
                       Listen
                     </button>
                     <button
-                      className={`large-button w-full ${
-                        tradition === "judaism" ? "primary-navy" : "primary-gold"
-                      }`}
+                      className={`large-button w-full ${primaryPathClass(tradition)}`}
                       onClick={() => onChooseTopic(topic)}
                     >
                       <Check aria-hidden size={28} />
@@ -568,7 +653,11 @@ function TopicsScreen({
           </div>
 
           <p className="mt-5 text-center font-sans text-[20px] text-[var(--sage)]">
-            {topicSource === "gemini" ? "Fresh reflections" : "Gentle starter reflections"}
+            {topicSource === "trove"
+              ? "Researched trove reflections"
+              : topicSource === "gemini"
+                ? "Fresh reflections"
+                : "Gentle starter reflections"}
             {persisted ? " saved for history." : "."}
           </p>
         </>
@@ -622,12 +711,22 @@ function LessonScreen({
           {lesson?.title || topic?.title || "Preparing today's lesson"}
         </h1>
 
-        <div className="lesson-art mt-7 flex items-center justify-center">
+        <div
+          className="lesson-art mt-7 flex items-center justify-center"
+          data-has-image={Boolean(topic?.imageUrl)}
+        >
+          {topic?.imageUrl && (
+            <img
+              src={topic.imageUrl}
+              alt=""
+              className="lesson-art-image"
+            />
+          )}
           {isLoading ? (
-            <RefreshCw className="animate-spin text-[var(--gold)]" size={66} />
+            <RefreshCw className="relative z-10 animate-spin text-[var(--gold)]" size={66} />
           ) : (
             <button
-              className="large-button primary-navy min-h-[104px] min-w-[104px] rounded-full"
+              className="large-button primary-navy relative z-10 min-h-[104px] min-w-[104px] rounded-full"
               onClick={isPlaying ? onPause : onPlay}
             >
               {isPlaying ? <Pause aria-hidden size={44} /> : <Play aria-hidden size={44} />}
@@ -670,6 +769,42 @@ function LessonScreen({
               />
               <ClosingItem icon={<Heart aria-hidden size={30} />} text={lesson.closing.line} />
             </div>
+
+            {Boolean(lesson.themes?.length || lesson.sources?.length) && (
+              <div className="source-panel mt-6">
+                {lesson.themes && lesson.themes.length > 0 && (
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {lesson.themes.map((theme) => (
+                      <span key={theme} className="theme-chip">
+                        {theme}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {lesson.sources && lesson.sources.length > 0 && (
+                  <>
+                    <div className="mb-3 flex items-center gap-3 font-sans text-[21px] font-bold text-[var(--navy)]">
+                      <BookOpen aria-hidden size={26} />
+                      Source notes
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {lesson.sources.map((source) => (
+                        <a
+                          key={source.url}
+                          className="source-link"
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <span>{source.title}</span>
+                          <small>{source.note}</small>
+                        </a>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <button className="large-button secondary-light" onClick={onRepeat}>
@@ -807,8 +942,8 @@ function SettingsScreen({
   setSessionMinutes: (value: number) => void;
   speechSpeed: SpeechSpeed;
   setSpeechSpeed: (value: SpeechSpeed) => void;
-  traditionBias: "judaism" | "buddhism" | "balanced";
-  setTraditionBias: (value: "judaism" | "buddhism" | "balanced") => void;
+  traditionBias: TraditionBias;
+  setTraditionBias: (value: TraditionBias) => void;
   showTranscript: boolean;
   setShowTranscript: (value: boolean) => void;
   recentSessions: RecentSession[];
@@ -843,8 +978,8 @@ function SettingsScreen({
         </SettingBlock>
 
         <SettingBlock icon={<Gauge aria-hidden size={30} />} title="Tradition balance">
-          <div className="grid grid-cols-3 gap-3">
-            {(["judaism", "buddhism", "balanced"] as const).map((value) => (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {(["judaism", "buddhism", "both", "balanced"] as const).map((value) => (
               <button
                 key={value}
                 className="segmented-choice"
@@ -954,16 +1089,30 @@ function PathMark({ tradition }: { tradition: Tradition }) {
     <div className="flex min-h-[64px] items-center gap-3 rounded-full bg-white/55 px-5 text-[var(--navy)] shadow-sm">
       {tradition === "judaism" ? (
         <span className="magen scale-[0.45]" aria-hidden />
+      ) : tradition === "both" ? (
+        <Sparkles aria-hidden size={42} strokeWidth={1.5} />
       ) : (
         <Flower2 aria-hidden size={42} strokeWidth={1.5} />
       )}
-      <span className="font-sans text-[24px] font-bold">{titleCase(tradition)}</span>
+      <span className="font-sans text-[24px] font-bold">{pathLabel(tradition)}</span>
     </div>
   );
 }
 
 function TopicIcon({ topic }: { topic: Topic }) {
   const size = 70;
+
+  if (topic.visual === "bridge") {
+    return <Heart aria-hidden className="relative z-10" size={size} strokeWidth={1.4} />;
+  }
+
+  if (topic.visual === "compass" || topic.visual === "gate") {
+    return <Sparkles aria-hidden className="relative z-10" size={size} strokeWidth={1.4} />;
+  }
+
+  if (topic.visual === "river") {
+    return <Leaf aria-hidden className="relative z-10" size={size} strokeWidth={1.4} />;
+  }
 
   if (topic.tradition === "judaism" && topic.visual === "scroll") {
     return <BookOpen aria-hidden className="relative z-10" size={size} strokeWidth={1.4} />;
@@ -994,4 +1143,20 @@ function TopicIcon({ topic }: { topic: Topic }) {
 
 function titleCase(value: string) {
   return value.slice(0, 1).toUpperCase() + value.slice(1);
+}
+
+function pathLabel(tradition: Tradition) {
+  return tradition === "both" ? "Both paths" : titleCase(tradition);
+}
+
+function primaryPathClass(tradition: Tradition) {
+  if (tradition === "judaism") {
+    return "primary-navy";
+  }
+
+  if (tradition === "both") {
+    return "primary-bridge";
+  }
+
+  return "primary-gold";
 }
