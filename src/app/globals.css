@@ -74,16 +74,15 @@ a:focus-visible {
 }
 
 /* When a panel ALSO has page-frame, the navy frame provides the bg/shadow.
- * Suppress the cream gradient + box-shadow so the gold corners are visible. */
+ * Override only background — keep .page-frame's border-image (gold corners).
+ * Padding comes from the border-width itself, plus a touch of internal padding. */
 .page-frame.sacred-panel,
 .page-frame.topics-square,
 .page-frame.lesson-square {
-  background: transparent;
+  background-color: #00152d;
   background-image: none;
-  border: 0;
-  border-radius: 4px;
   color: var(--cream);
-  padding: 0;
+  padding: 14px 16px;
 }
 
 /* Brighten the bits that used to be on cream and are now on navy.
@@ -107,6 +106,63 @@ a:focus-visible {
 .page-frame > .lesson-square-actions .large-button.secondary-light,
 .page-frame > .topics-square-footer .large-button.secondary-light {
   background: rgba(255, 250, 240, 0.92);
+}
+
+/* Cards on the navy frame keep dark text inside.
+ * The page-frame sets color:cream on its descendants by default; these
+ * selectors flip it back to dark wherever the card has a cream background. */
+.page-frame .topic-tile,
+.page-frame .topic-tile *,
+.page-frame .lesson-tile,
+.page-frame .lesson-tile *,
+.page-frame .answer-card,
+.page-frame .answer-card *,
+.page-frame .library-cluster,
+.page-frame .library-cluster *,
+.page-frame .library-music,
+.page-frame .library-music *,
+.page-frame .topic-card,
+.page-frame .topic-card *,
+.page-frame .topics-square-state,
+.page-frame .topics-square-state *,
+.page-frame .favourite-chip {
+  color: var(--ink);
+}
+
+/* Re-restore navy on actual headings inside cards */
+.page-frame .topic-tile-title,
+.page-frame .lesson-square-title.in-card,
+.page-frame .lesson-closing-tile .lesson-closing-label,
+.page-frame .library-cluster-title,
+.page-frame .library-row-title,
+.page-frame .library-music-title {
+  color: var(--navy);
+}
+
+/* The Settings sub-cards (SettingBlock) and recent-activity rows also need
+ * dark text — they use Tailwind bg-white/55 + bg-white/60. Catch them by
+ * the bg-white substring (matches all bg-white/NN classes). */
+.page-frame [class*="bg-white"],
+.page-frame [class*="bg-white"] * {
+  color: var(--ink);
+}
+
+/* Hint, response, and error highlight cards on the question/lesson screens */
+.page-frame [class*="bg-[var(--blue-note)]"],
+.page-frame [class*="bg-[var(--blue-note)]"] *,
+.page-frame [class*="bg-[#fff1cb]"],
+.page-frame [class*="bg-[#fff1cb]"] *,
+.page-frame [class*="bg-[#fff1e8]"],
+.page-frame [class*="bg-[#fff1e8]"] *,
+.page-frame [class*="bg-[#fff7d8]"],
+.page-frame [class*="bg-[#fff7d8]"] * {
+  color: var(--ink);
+}
+
+/* The lesson hero (last so it overrides cream-by-default rules above) */
+.page-frame .lesson-hero,
+.page-frame .lesson-hero * {
+  color: var(--cream);
 }
 
 .large-button {

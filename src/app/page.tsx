@@ -1041,14 +1041,14 @@ function LibraryScreen({
           <ArrowLeft aria-hidden size={28} />
           Back to Two Paths
         </button>
-        <BookOpen aria-hidden className="text-[var(--navy)]" size={42} />
+        <BookOpen aria-hidden className="text-[var(--gold)]" size={42} />
       </div>
 
       <div className="mx-auto mt-4 max-w-4xl text-center">
-        <h1 className="text-[44px] font-bold leading-tight text-[var(--navy)]">
+        <h1 className="text-[44px] font-bold leading-tight text-[var(--cream)]">
           The library
         </h1>
-        <p className="mt-2 font-sans text-[22px] text-[var(--ink)]">
+        <p className="mt-2 font-sans text-[22px] text-[var(--cream)]/80">
           {section === "reflections"
             ? "Every reflection in the trove. Tap any one to listen."
             : "All the ambient music. Like, dislike, change your mind."}
@@ -1486,7 +1486,7 @@ function QuestionScreen({
           <ArrowLeft aria-hidden size={28} />
           Back to listening
         </button>
-        <p className="font-sans text-[24px] font-bold text-[var(--navy)]">Question 1 of 1</p>
+        <p className="font-sans text-[24px] font-bold text-[var(--cream)]">Question 1 of 1</p>
       </div>
 
       <div className="mx-auto mt-8 max-w-5xl">
@@ -1639,12 +1639,12 @@ function SettingsScreen({
     <section className="page-frame sacred-panel">
       <div className="flex flex-wrap items-center justify-between gap-4">
         {backHomeButton}
-        <Users aria-hidden className="text-[var(--navy)]" size={42} />
+        <Users aria-hidden className="text-[var(--gold)]" size={42} />
       </div>
 
       <div className="mx-auto mt-4 max-w-4xl text-center">
-        <h1 className="text-[46px] font-bold text-[var(--navy)]">Settings</h1>
-        <p className="font-sans text-[24px]">Customize the experience for Dad.</p>
+        <h1 className="text-[46px] font-bold text-[var(--cream)]">Settings</h1>
+        <p className="font-sans text-[24px] text-[var(--cream)]/80">Customize the experience for Dad.</p>
       </div>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">
