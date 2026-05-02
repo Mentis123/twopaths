@@ -267,7 +267,8 @@ export default function Home() {
     }
   }
 
-  async function chooseTopic(topic: Topic, autoStart = false) {
+  async function chooseTopic(topic: Topic, autoStart = false, overrideMode?: SessionMode) {
+    const lessonMode = overrideMode ?? mode;
     setSelectedTopic(topic);
     setScreen("lesson");
     setLesson(null);
@@ -287,7 +288,7 @@ export default function Home() {
         body: JSON.stringify({
           tradition: topic.tradition,
           topic,
-          mode,
+          mode: lessonMode,
           minutes: sessionMinutes,
           userId: "dad",
           speechSpeed,
@@ -535,6 +536,21 @@ export default function Home() {
     });
   }
 
+  function speakWithFallback(text: string, audioUrl?: string) {
+    // Cancel anything currently speaking
+    window.speechSynthesis?.cancel();
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.onerror = () => {
+        // Fall back to browser TTS if the prebuilt MP3 is missing
+        playBrowserSpeech(text);
+      };
+      audio.play().catch(() => playBrowserSpeech(text));
+      return;
+    }
+    playBrowserSpeech(text);
+  }
+
   function playBrowserSpeech(text = currentScript) {
     if (!text) {
       return;
@@ -698,6 +714,14 @@ export default function Home() {
             error={error}
             narrationError={narrationError}
             mode={mode}
+            setMode={(nextMode) => {
+              if (nextMode === mode || !selectedTopic) return;
+              setMode(nextMode);
+              // Re-load this topic in the new mode (instant for prebuilt items)
+              chooseTopic(selectedTopic, isPlaying, nextMode);
+            }}
+            allTopics={topics}
+            onPickTopic={(topic) => chooseTopic(topic, isPlaying)}
             currentScript={currentScript}
             showTranscript={showTranscript}
             showSimplified={showSimplified}
@@ -725,7 +749,7 @@ export default function Home() {
             selectedAnswer={selectedAnswer}
             hintVisible={hintVisible}
             onSelectAnswer={setSelectedAnswer}
-            onSpeak={playBrowserSpeech}
+            onSpeak={speakWithFallback}
             onHint={() => setHintVisible(true)}
             onSkip={() => setScreen("lesson")}
             onBack={() => setScreen("lesson")}
@@ -1248,6 +1272,9 @@ function LessonScreen({
   error,
   narrationError,
   mode,
+  setMode,
+  allTopics,
+  onPickTopic,
   currentScript,
   showTranscript,
   showSimplified,
@@ -1268,6 +1295,9 @@ function LessonScreen({
   error: string | null;
   narrationError: string | null;
   mode: SessionMode;
+  setMode: (mode: SessionMode) => void;
+  allTopics: Topic[];
+  onPickTopic: (topic: Topic) => void;
   currentScript: string;
   showTranscript: boolean;
   showSimplified: boolean;
@@ -1284,15 +1314,19 @@ function LessonScreen({
   const ready = Boolean(lesson);
   const audioReady = Boolean(lesson?.audioAvailable);
 
+  // Find prev/next topic from the visible 4 (today's selection)
+  const idx = topic ? allTopics.findIndex((t) => t.id === topic.id) : -1;
+  const prevTopic = idx > 0 ? allTopics[idx - 1] : null;
+  const nextTopic = idx >= 0 && idx < allTopics.length - 1 ? allTopics[idx + 1] : null;
+
   return (
     <section className="lesson-square" aria-label="Today's reflection">
       <header className="lesson-square-header">
         <button className="large-button secondary-light lesson-back" onClick={onBack}>
           <ArrowLeft aria-hidden size={22} />
-          Back
+          Topics
         </button>
         <div className="lesson-square-titleblock">
-          <span className="lesson-square-mode">{modeLabel(mode)}</span>
           <h1 className="lesson-square-title">
             {lesson?.title || topic?.title || "Preparing today's reflection…"}
           </h1>
@@ -1300,91 +1334,95 @@ function LessonScreen({
         <div className="lesson-square-spacer" aria-hidden />
       </header>
 
+      <div className="lesson-mode-row">
+        {modes.map((m) => (
+          <button
+            key={m.id}
+            className="segmented-choice lesson-mode-pill"
+            data-active={mode === m.id}
+            onClick={() => setMode(m.id)}
+            disabled={isLoading}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <div className="lesson-tile lesson-error">
           {error}
         </div>
       )}
 
-      <div className="lesson-square-body">
-        <div
-          className="lesson-tile lesson-hero"
-          data-has-image={Boolean(topic?.imageUrl)}
-        >
-          {topic?.imageUrl && (
-            <img src={topic.imageUrl} alt="" className="lesson-hero-image" />
-          )}
-          <div className="lesson-hero-overlay">
-            <button
-              className="lesson-play"
-              onClick={isPlaying ? onPause : onPlay}
-              disabled={isLoading}
-              aria-label={isPlaying ? "Pause narration" : "Play narration"}
-            >
-              {isLoadingAudio ? (
-                <RefreshCw aria-hidden className="animate-spin" size={32} />
-              ) : isPlaying ? (
-                <Pause aria-hidden size={36} />
-              ) : (
-                <Play aria-hidden size={36} />
-              )}
-              <span>
-                {isLoadingAudio
-                  ? "Voice arriving…"
-                  : isPlaying
-                    ? "Pause"
-                    : audioReady
-                      ? "Listen"
-                      : "Read along"}
-              </span>
-            </button>
-            <span className="lesson-hero-voice">
-              {audioReady
-                ? `${providerLabel(lesson?.narrationProvider)} · ${voiceLabel(lesson?.voiceId || voiceId)}`
-                : isLoadingAudio
-                  ? `Preparing ${voiceLabel(voiceId)}…`
-                  : ready
-                    ? "Press play when ready"
-                    : "Loading…"}
+      <div
+        className="lesson-tile lesson-hero lesson-hero-wide"
+        data-has-image={Boolean(topic?.imageUrl)}
+      >
+        {topic?.imageUrl && (
+          <img src={topic.imageUrl} alt="" className="lesson-hero-image" />
+        )}
+        <div className="lesson-hero-overlay">
+          <button
+            className="lesson-play"
+            onClick={isPlaying ? onPause : onPlay}
+            disabled={isLoading}
+            aria-label={isPlaying ? "Pause narration" : "Play narration"}
+          >
+            {isLoadingAudio ? (
+              <RefreshCw aria-hidden className="animate-spin" size={32} />
+            ) : isPlaying ? (
+              <Pause aria-hidden size={36} />
+            ) : (
+              <Play aria-hidden size={36} />
+            )}
+            <span>
+              {isLoadingAudio
+                ? "Voice arriving…"
+                : isPlaying
+                  ? "Pause"
+                  : "Listen"}
             </span>
-          </div>
-        </div>
-
-        <div className="lesson-closing-stack">
-          {ready ? (
-            <>
-              <div className="lesson-tile lesson-closing-tile">
-                <span className="lesson-closing-label">
-                  <img src="/assets/symbols/mark-takeaway.png" alt="" className="lesson-closing-mark" />
-                  Takeaway
-                </span>
-                <p>{lesson!.closing.takeaway}</p>
-              </div>
-              <div className="lesson-tile lesson-closing-tile">
-                <span className="lesson-closing-label">
-                  <img src="/assets/symbols/mark-reflection.png" alt="" className="lesson-closing-mark" />
-                  Reflection
-                </span>
-                <p>{lesson!.closing.reflection}</p>
-              </div>
-              <div className="lesson-tile lesson-closing-tile">
-                <span className="lesson-closing-label">
-                  <img src="/assets/symbols/mark-closing.png" alt="" className="lesson-closing-mark" />
-                  Closing
-                </span>
-                <p>{lesson!.closing.line}</p>
-              </div>
-            </>
-          ) : (
-            <div className="lesson-tile lesson-closing-tile lesson-skeleton">
-              Gathering today's reflection…
-            </div>
-          )}
+          </button>
+          <span className="lesson-hero-voice">
+            {audioReady
+              ? `${providerLabel(lesson?.narrationProvider)} · ${voiceLabel(lesson?.voiceId || voiceId)}`
+              : isLoadingAudio
+                ? `Preparing ${voiceLabel(voiceId)}…`
+                : ready
+                  ? "Press play when ready"
+                  : "Loading…"}
+          </span>
         </div>
       </div>
 
+      {ready && (
+        <div className="lesson-closing-row">
+          <div className="lesson-tile lesson-closing-tile">
+            <span className="lesson-closing-label">
+              <img src="/assets/symbols/mark-takeaway.png" alt="" className="lesson-closing-mark" />
+              Takeaway
+            </span>
+            <p>{lesson!.closing.takeaway}</p>
+          </div>
+          <div className="lesson-tile lesson-closing-tile">
+            <span className="lesson-closing-label">
+              <img src="/assets/symbols/mark-reflection.png" alt="" className="lesson-closing-mark" />
+              Reflection
+            </span>
+            <p>{lesson!.closing.reflection}</p>
+          </div>
+          <div className="lesson-tile lesson-closing-tile">
+            <span className="lesson-closing-label">
+              <img src="/assets/symbols/mark-closing.png" alt="" className="lesson-closing-mark" />
+              Closing
+            </span>
+            <p>{lesson!.closing.line}</p>
+          </div>
+        </div>
+      )}
+
       {ready && showTranscript && (
-        <div className="lesson-tile lesson-transcript">
+        <div className="lesson-tile lesson-transcript lesson-transcript-scrollable">
           <div className="lesson-transcript-head">
             <BookOpen aria-hidden size={22} />
             {showSimplified ? "Simpler version" : "Transcript"}
@@ -1401,25 +1439,41 @@ function LessonScreen({
 
       {ready && (
         <footer className="lesson-square-actions">
+          <button
+            className="large-button secondary-light lesson-nav-btn"
+            onClick={() => prevTopic && onPickTopic(prevTopic)}
+            disabled={!prevTopic}
+            title={prevTopic?.title || "No previous topic"}
+            aria-label="Previous topic"
+          >
+            <ArrowLeft aria-hidden size={22} />
+            Prev
+          </button>
           <button className="large-button secondary-light" onClick={onRepeat}>
-            <RotateCcw aria-hidden size={22} />
+            <RotateCcw aria-hidden size={20} />
             Repeat
           </button>
           <button className="large-button secondary-light" onClick={onSimplify}>
-            <Leaf aria-hidden size={22} />
+            <Leaf aria-hidden size={20} />
             Simpler
           </button>
           <button className="large-button secondary-light" onClick={onQuestion}>
-            <CircleHelp aria-hidden size={22} />
+            <CircleHelp aria-hidden size={20} />
             Question
           </button>
-          <button className="large-button primary-navy" onClick={isPlaying ? onPause : onPlay}>
-            {isPlaying ? <Pause aria-hidden size={22} /> : <Play aria-hidden size={22} />}
-            {isPlaying ? "Pause" : "Continue"}
-          </button>
           <button className="large-button primary-gold" onClick={onFinish}>
-            <X aria-hidden size={22} />
+            <X aria-hidden size={20} />
             Finish
+          </button>
+          <button
+            className="large-button secondary-light lesson-nav-btn"
+            onClick={() => nextTopic && onPickTopic(nextTopic)}
+            disabled={!nextTopic}
+            title={nextTopic?.title || "No next topic"}
+            aria-label="Next topic"
+          >
+            Next
+            <ArrowLeft aria-hidden size={22} style={{ transform: "rotate(180deg)" }} />
           </button>
         </footer>
       )}
@@ -1448,7 +1502,7 @@ function QuestionScreen({
   selectedAnswer: string | null;
   hintVisible: boolean;
   onSelectAnswer: (id: string) => void;
-  onSpeak: (text: string) => void;
+  onSpeak: (text: string, audioUrl?: string) => void;
   onHint: () => void;
   onSkip: () => void;
   onBack: () => void;
@@ -1473,7 +1527,7 @@ function QuestionScreen({
             </h1>
             <button
               className="large-button icon-pill"
-              onClick={() => onSpeak(lesson.question.prompt)}
+              onClick={() => onSpeak(lesson.question.prompt, lesson.question.promptAudioUrl)}
               aria-label="Hear the question"
             >
               <Volume2 aria-hidden size={30} />
@@ -1504,7 +1558,7 @@ function QuestionScreen({
                     className="answer-speak"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSpeak(option.text);
+                      onSpeak(option.text, option.textAudioUrl);
                     }}
                     onKeyDown={(e) => e.stopPropagation()}
                     aria-label={`Hear option: ${option.text}`}
@@ -1523,7 +1577,7 @@ function QuestionScreen({
               <button
                 type="button"
                 className="answer-speak"
-                onClick={() => onSpeak(lesson.question.hint)}
+                onClick={() => onSpeak(lesson.question.hint, lesson.question.hintAudioUrl)}
                 aria-label="Hear the hint"
               >
                 <Volume2 aria-hidden size={18} />
@@ -1537,7 +1591,7 @@ function QuestionScreen({
               <button
                 type="button"
                 className="answer-speak"
-                onClick={() => onSpeak(answer.response)}
+                onClick={() => onSpeak(answer.response, answer.responseAudioUrl)}
                 aria-label="Hear the response"
               >
                 <Volume2 aria-hidden size={18} />
@@ -1549,7 +1603,7 @@ function QuestionScreen({
         <div className="mt-7 grid gap-4 md:grid-cols-3">
           <button
             className="large-button secondary-light"
-            onClick={() => onSpeak(lesson.question.prompt)}
+            onClick={() => onSpeak(lesson.question.prompt, lesson.question.promptAudioUrl)}
           >
             <Volume2 aria-hidden size={28} />
             Hear again

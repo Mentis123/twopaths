@@ -41,11 +41,15 @@ export type QuizOption = {
   text: string;
   isCorrect: boolean;
   response: string;
+  textAudioUrl?: string;
+  responseAudioUrl?: string;
 };
 
 export type QuizQuestion = {
   prompt: string;
+  promptAudioUrl?: string;
   hint: string;
+  hintAudioUrl?: string;
   options: QuizOption[];
 };
 

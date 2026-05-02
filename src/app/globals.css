@@ -781,8 +781,8 @@ a:focus-visible {
 .lesson-square {
   width: min(100%, 920px);
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: auto auto auto auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   padding: 18px;
   border-radius: 18px;
@@ -846,6 +846,71 @@ a:focus-visible {
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 14px;
   min-height: 0;
+}
+
+.lesson-mode-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lesson-mode-pill {
+  min-height: 44px;
+  font-size: 16px;
+  padding: 8px 18px;
+}
+
+.lesson-hero-wide {
+  min-height: 280px;
+  position: relative;
+  background: var(--navy);
+  border-color: rgba(255, 231, 167, 0.5);
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lesson-closing-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.lesson-transcript-scrollable {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.lesson-transcript-scrollable .lesson-transcript-body {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.lesson-nav-btn {
+  min-width: 88px;
+}
+
+.lesson-square-actions {
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .lesson-closing-row {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-mode-row .segmented-choice {
+    flex: 1 1 30%;
+    font-size: 14px;
+    padding: 6px 8px;
+  }
+
+  .lesson-square-actions .large-button {
+    flex: 1 1 calc(50% - 6px);
+  }
 }
 
 .lesson-tile {

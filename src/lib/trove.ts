@@ -1116,6 +1116,31 @@ export function listTroveIds(): Array<{ id: string; tradition: Tradition }> {
   return trove.map((item) => ({ id: item.id, tradition: item.tradition }));
 }
 
+export type QuestionTextSet = {
+  prompt: string;
+  hint: string;
+  correctText: string;
+  correctResponse: string;
+  distractors: Array<{ slot: string; text: string; response: string }>;
+};
+
+export function buildQuestionTexts(topicId: string): QuestionTextSet | null {
+  const item = troveById.get(topicId);
+  if (!item) return null;
+  const distractors = distractorsById[item.id] ?? [
+    { text: "Treat it as trivia to remember, without letting it question the life.", response: "A detail can be useful, but this lesson is asking for lived reflection." },
+    { text: "Flatten every tradition into the same simple message.", response: "The bridge is richer when each tradition keeps its own shape." },
+    { text: "Rush to certainty before the question has done its work.", response: "Some wisdom needs patient attention before it opens." },
+  ];
+  return {
+    prompt: item.question,
+    hint: "Look for the answer that preserves depth and difference.",
+    correctText: item.correctAnswer,
+    correctResponse: "Yes. That keeps the teaching both grounded and alive.",
+    distractors: distractors.map((d, i) => ({ slot: `d${i + 1}`, text: d.text, response: d.response })),
+  };
+}
+
 export function dailySeed(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Sydney",
@@ -1158,7 +1183,9 @@ export function troveLesson({
     ],
     question: {
       prompt: item.question,
+      promptAudioUrl: `/audio/questions/${item.id}/prompt.mp3`,
       hint: "Look for the answer that preserves depth and difference.",
+      hintAudioUrl: `/audio/shared/hint.mp3`,
       options: buildQuestionOptions(item),
     },
     closing: {
@@ -1192,23 +1219,31 @@ function buildQuestionOptions(item: TroveItem): QuizOption[] {
   ];
 
   const seed = item.id;
-  const shuffled = seededShuffle(
-    [
-      {
-        text: item.correctAnswer,
-        isCorrect: true,
-        response: "Yes. That keeps the teaching both grounded and alive.",
-      },
-      ...distractors.map((d) => ({ text: d.text, isCorrect: false, response: d.response })),
-    ],
-    seed,
-  );
+  // Tag each option with its source slot (correct or d1/d2/d3) BEFORE shuffle
+  // so we can derive a stable per-item audio URL regardless of display order.
+  const tagged = [
+    {
+      slot: "correct",
+      text: item.correctAnswer,
+      isCorrect: true,
+      response: "Yes. That keeps the teaching both grounded and alive.",
+    },
+    ...distractors.map((d, i) => ({
+      slot: `d${i + 1}`,
+      text: d.text,
+      isCorrect: false,
+      response: d.response,
+    })),
+  ];
+  const shuffled = seededShuffle(tagged, seed);
 
   return shuffled.map((option, index) => ({
     id: String.fromCharCode(97 + index),
     text: option.text,
     isCorrect: option.isCorrect,
     response: option.response,
+    textAudioUrl: `/audio/questions/${item.id}/${option.slot}-text.mp3`,
+    responseAudioUrl: `/audio/questions/${item.id}/${option.slot}-response.mp3`,
   }));
 }
 
