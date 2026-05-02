@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Music, Pause, Play, SkipForward, ThumbsDown } from "lucide-react";
+import { Heart, Music, Pause, Play, SkipForward, ThumbsDown, Volume2, VolumeX } from "lucide-react";
 import { useAmbientPlayer } from "@/components/AmbientPlayerProvider";
 
 export default function AmbientPlayer() {
@@ -13,6 +13,9 @@ export default function AmbientPlayer() {
     isPlaying,
     pool,
     currentTrackId,
+    currentTime,
+    duration,
+    volume,
     togglePlayPause,
     toggleMode,
     next,
@@ -20,6 +23,8 @@ export default function AmbientPlayer() {
     unlike,
     dislike,
     isLiked,
+    seek,
+    setVolume,
   } = player;
 
   const currentTrack = tracks.find((t) => t.id === currentTrackId) ?? null;
@@ -51,6 +56,13 @@ export default function AmbientPlayer() {
     dislike(currentTrackId);
   }
 
+  function formatTime(seconds: number) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
   return (
     <div
       className="ambient-player"
@@ -76,6 +88,45 @@ export default function AmbientPlayer() {
         >
           {mode === "all" ? "All" : "Liked"}
         </button>
+      </div>
+
+      <div className="ambient-player-seek">
+        <input
+          type="range"
+          className="ambient-player-slider"
+          min={0}
+          max={Math.max(1, duration)}
+          step={0.1}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={(e) => seek(Number(e.target.value))}
+          disabled={!enabled || !duration}
+          aria-label="Seek within track"
+        />
+        <span className="ambient-player-time">
+          {formatTime(currentTime)}
+        </span>
+      </div>
+
+      <div className="ambient-player-volume">
+        <button
+          type="button"
+          className="ambient-player-volume-icon"
+          onClick={() => setVolume(volume > 0 ? 0 : 0.45)}
+          aria-label={volume > 0 ? "Mute" : "Unmute"}
+          title={volume > 0 ? "Mute" : "Unmute"}
+        >
+          {volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+        </button>
+        <input
+          type="range"
+          className="ambient-player-slider"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={(e) => setVolume(Number(e.target.value))}
+          aria-label="Volume"
+        />
       </div>
 
       <div className="ambient-player-row ambient-player-controls">

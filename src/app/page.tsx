@@ -378,7 +378,12 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error("Voice generation failed.");
+        let reason = "Voice generation failed.";
+        try {
+          const data = (await response.clone().json()) as { error?: string };
+          if (data?.error) reason = data.error;
+        } catch {}
+        throw new Error(reason);
       }
 
       const blob = await response.blob();
@@ -399,10 +404,13 @@ export default function Home() {
             }
           : current,
       );
-    } catch {
+    } catch (err) {
       pendingAudioAutoplayRef.current = false;
+      const detail = err instanceof Error ? err.message : "";
       setNarrationError(
-        "The warm voice isn't available right now — using the browser voice instead.",
+        detail
+          ? `Warm voice unavailable (${detail.slice(0, 120)}). Using the browser voice instead.`
+          : "Warm voice isn't available right now — using the browser voice instead.",
       );
       setLesson((current) =>
         current?.id === targetLesson.id
@@ -625,7 +633,7 @@ export default function Home() {
             selectedAnswer={selectedAnswer}
             hintVisible={hintVisible}
             onSelectAnswer={setSelectedAnswer}
-            onHearAgain={() => playBrowserSpeech(lesson.question.prompt)}
+            onSpeak={playBrowserSpeech}
             onHint={() => setHintVisible(true)}
             onSkip={() => setScreen("lesson")}
             onBack={() => setScreen("lesson")}
@@ -711,7 +719,7 @@ function HomeScreen({
           aria-label="Hold both paths together"
           title="Both paths"
         >
-          <span aria-hidden className="landing-both-mark" />
+          <img src="/assets/symbols/both.png" alt="" className="landing-both-mark" />
           <span className="landing-both-label">Both</span>
         </button>
         <button
@@ -808,7 +816,7 @@ function TopicsScreen({
           Back
         </button>
         <button className="large-button primary-bridge" onClick={onShuffle}>
-          <Sparkles aria-hidden size={26} />
+          <img src="/assets/symbols/mark-shuffle.png" alt="" className="button-icon" />
           Shuffle
         </button>
       </footer>
@@ -955,18 +963,20 @@ function LibraryScreen({
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <button
-          className="segmented-choice"
+          className="segmented-choice library-tab"
           data-active={section === "reflections"}
           onClick={() => setSection("reflections")}
         >
-          <BookOpen aria-hidden size={18} /> Reflections
+          <img src="/assets/symbols/tab-reflections.png" alt="" className="library-tab-icon" />
+          Reflections
         </button>
         <button
-          className="segmented-choice"
+          className="segmented-choice library-tab"
           data-active={section === "music"}
           onClick={() => setSection("music")}
         >
-          <Music aria-hidden size={18} /> Music
+          <img src="/assets/symbols/tab-music.png" alt="" className="library-tab-icon" />
+          Music
         </button>
       </div>
 
@@ -1253,19 +1263,22 @@ function LessonScreen({
             <>
               <div className="lesson-tile lesson-closing-tile">
                 <span className="lesson-closing-label">
-                  <Leaf aria-hidden size={20} /> Takeaway
+                  <img src="/assets/symbols/mark-takeaway.png" alt="" className="lesson-closing-mark" />
+                  Takeaway
                 </span>
                 <p>{lesson!.closing.takeaway}</p>
               </div>
               <div className="lesson-tile lesson-closing-tile">
                 <span className="lesson-closing-label">
-                  <CircleHelp aria-hidden size={20} /> Reflection
+                  <img src="/assets/symbols/mark-reflection.png" alt="" className="lesson-closing-mark" />
+                  Reflection
                 </span>
                 <p>{lesson!.closing.reflection}</p>
               </div>
               <div className="lesson-tile lesson-closing-tile">
                 <span className="lesson-closing-label">
-                  <Heart aria-hidden size={20} /> Closing
+                  <img src="/assets/symbols/mark-closing.png" alt="" className="lesson-closing-mark" />
+                  Closing
                 </span>
                 <p>{lesson!.closing.line}</p>
               </div>
@@ -1334,7 +1347,7 @@ function QuestionScreen({
   selectedAnswer,
   hintVisible,
   onSelectAnswer,
-  onHearAgain,
+  onSpeak,
   onHint,
   onSkip,
   onBack,
@@ -1343,7 +1356,7 @@ function QuestionScreen({
   selectedAnswer: string | null;
   hintVisible: boolean;
   onSelectAnswer: (id: string) => void;
-  onHearAgain: () => void;
+  onSpeak: (text: string) => void;
   onHint: () => void;
   onSkip: () => void;
   onBack: () => void;
@@ -1366,7 +1379,11 @@ function QuestionScreen({
             <h1 className="max-w-3xl text-[40px] font-bold leading-tight text-[var(--navy)]">
               {lesson.question.prompt}
             </h1>
-            <button className="large-button icon-pill" onClick={onHearAgain}>
+            <button
+              className="large-button icon-pill"
+              onClick={() => onSpeak(lesson.question.prompt)}
+              aria-label="Hear the question"
+            >
               <Volume2 aria-hidden size={30} />
               Hear
             </button>
@@ -1374,35 +1391,74 @@ function QuestionScreen({
 
           <div className="grid gap-4 md:grid-cols-2">
             {lesson.question.options.map((option) => (
-              <button
+              <div
                 key={option.id}
-                className="answer-card p-6 text-left font-sans text-[25px] font-bold"
+                className="answer-card p-5 text-left font-sans text-[24px] font-bold"
                 data-selected={selectedAnswer === option.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectAnswer(option.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectAnswer(option.id);
+                  }
+                }}
               >
-                <span className="flex items-center justify-between gap-4">
-                  {option.text}
-                  {selectedAnswer === option.id && <Check aria-hidden size={34} />}
-                </span>
-              </button>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex-1">{option.text}</span>
+                  <button
+                    type="button"
+                    className="answer-speak"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSpeak(option.text);
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    aria-label={`Hear option: ${option.text}`}
+                  >
+                    <Volume2 aria-hidden size={18} />
+                  </button>
+                  {selectedAnswer === option.id && <Check aria-hidden size={28} />}
+                </div>
+              </div>
             ))}
           </div>
 
           {hintVisible && (
-            <p className="mt-6 rounded-[14px] bg-[var(--blue-note)] p-5 font-sans text-[24px]">
-              {lesson.question.hint}
-            </p>
+            <div className="mt-6 flex items-start gap-3 rounded-[14px] bg-[var(--blue-note)] p-5 font-sans text-[22px]">
+              <span className="flex-1">{lesson.question.hint}</span>
+              <button
+                type="button"
+                className="answer-speak"
+                onClick={() => onSpeak(lesson.question.hint)}
+                aria-label="Hear the hint"
+              >
+                <Volume2 aria-hidden size={18} />
+              </button>
+            </div>
           )}
 
           {answer && (
-            <p className="mt-6 rounded-[14px] bg-[#fff1cb] p-5 font-sans text-[25px]">
-              {answer.response}
-            </p>
+            <div className="mt-6 flex items-start gap-3 rounded-[14px] bg-[#fff1cb] p-5 font-sans text-[23px]">
+              <span className="flex-1">{answer.response}</span>
+              <button
+                type="button"
+                className="answer-speak"
+                onClick={() => onSpeak(answer.response)}
+                aria-label="Hear the response"
+              >
+                <Volume2 aria-hidden size={18} />
+              </button>
+            </div>
           )}
         </div>
 
         <div className="mt-7 grid gap-4 md:grid-cols-3">
-          <button className="large-button secondary-light" onClick={onHearAgain}>
+          <button
+            className="large-button secondary-light"
+            onClick={() => onSpeak(lesson.question.prompt)}
+          >
             <Volume2 aria-hidden size={28} />
             Hear again
           </button>
@@ -1637,16 +1693,17 @@ function ClosingItem({ icon, text }: { icon: ReactNode; text: string }) {
 }
 
 function PathMark({ tradition }: { tradition: Tradition }) {
+  const symbol =
+    tradition === "judaism" ? "judaism" : tradition === "both" ? "both" : "buddhism";
   return (
-    <div className="flex min-h-[64px] items-center gap-3 rounded-full bg-white/55 px-5 text-[var(--navy)] shadow-sm">
-      {tradition === "judaism" ? (
-        <span className="magen scale-[0.45]" aria-hidden />
-      ) : tradition === "both" ? (
-        <Sparkles aria-hidden size={42} strokeWidth={1.5} />
-      ) : (
-        <Flower2 aria-hidden size={42} strokeWidth={1.5} />
-      )}
-      <span className="font-sans text-[24px] font-bold">{pathLabel(tradition)}</span>
+    <div className="path-mark">
+      <img
+        src={`/assets/symbols/${symbol}.png`}
+        alt=""
+        className="path-mark-symbol"
+        loading="lazy"
+      />
+      <span className="path-mark-label">{pathLabel(tradition)}</span>
     </div>
   );
 }

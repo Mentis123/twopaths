@@ -39,6 +39,9 @@ type AmbientContextValue = {
   pool: Track[];
   hasLiked: boolean;
   hasDisliked: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
   isLiked: (id: string) => boolean;
   isDisliked: (id: string) => boolean;
   toggleMode: () => void;
@@ -49,6 +52,8 @@ type AmbientContextValue = {
   unlike: (id: string) => void;
   dislike: (id: string) => void;
   undislike: (id: string) => void;
+  seek: (seconds: number) => void;
+  setVolume: (value: number) => void;
 };
 
 const STORAGE_KEY = "two-paths-ambient-state";
@@ -86,6 +91,9 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
   const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolumeState] = useState(DEFAULT_VOLUME);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recentHistoryRef = useRef<string[]>([]);
@@ -105,14 +113,24 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     if (stored.mode === "liked" || stored.mode === "all") setMode(stored.mode);
     if (Array.isArray(stored.liked)) setLiked(stored.liked.filter((id) => typeof id === "string"));
     if (Array.isArray(stored.disliked)) setDisliked(stored.disliked.filter((id) => typeof id === "string"));
+    if (typeof stored.volume === "number" && stored.volume >= 0 && stored.volume <= 1) {
+      setVolumeState(stored.volume);
+    }
     setHydrated(true);
   }, []);
 
   // Persist
   useEffect(() => {
     if (!hydrated) return;
-    writeState({ enabled, mode, liked, disliked });
-  }, [hydrated, enabled, mode, liked, disliked]);
+    writeState({ enabled, mode, liked, disliked, volume });
+  }, [hydrated, enabled, mode, liked, disliked, volume]);
+
+  // Apply volume to audio element
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = volume;
+  }, [volume]);
 
   // Load track list
   useEffect(() => {
@@ -181,17 +199,26 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleError = () => setIsPlaying(false);
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
+    const handleDurationChange = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+    const handleLoadedMetadata = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
 
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("error", handleError);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("durationchange", handleDurationChange);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("error", handleError);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("durationchange", handleDurationChange);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
   }, [currentTrackId, pickNextId]);
 
@@ -201,6 +228,8 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     if (!audio || !currentTrack) return;
     if (audio.src !== window.location.origin + currentTrack.url) {
       audio.src = currentTrack.url;
+      setCurrentTime(0);
+      setDuration(0);
     }
     if (enabled) {
       audio.play().catch(() => setIsPlaying(false));
@@ -284,6 +313,19 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
     setMode((m) => (m === "all" ? "liked" : "all"));
   }, []);
 
+  const seek = useCallback((seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    audio.currentTime = Math.max(0, Math.min(audio.duration, seconds));
+    setCurrentTime(audio.currentTime);
+  }, []);
+
+  const setVolume = useCallback((value: number) => {
+    const clamped = Math.max(0, Math.min(1, value));
+    setVolumeState(clamped);
+  }, []);
+
   const value = useMemo<AmbientContextValue>(
     () => ({
       tracks,
@@ -297,6 +339,9 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       pool,
       hasLiked: liked.length > 0,
       hasDisliked: disliked.length > 0,
+      currentTime,
+      duration,
+      volume,
       isLiked: (id) => likedSet.has(id),
       isDisliked: (id) => dislikedSet.has(id),
       toggleMode,
@@ -307,6 +352,8 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       unlike,
       dislike,
       undislike,
+      seek,
+      setVolume,
     }),
     [
       tracks,
@@ -320,6 +367,9 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       pool,
       likedSet,
       dislikedSet,
+      currentTime,
+      duration,
+      volume,
       toggleMode,
       togglePlayPause,
       next,
@@ -328,6 +378,8 @@ export function AmbientPlayerProvider({ children }: { children: ReactNode }) {
       unlike,
       dislike,
       undislike,
+      seek,
+      setVolume,
     ],
   );
 
