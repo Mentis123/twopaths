@@ -991,6 +991,7 @@ function TopicTile({
       data-tradition={tradition}
       data-armable="topic"
       data-armed={isArmed}
+      data-previewing={isPreviewing}
       role="button"
       tabIndex={0}
       onClick={onActivate}
@@ -1026,13 +1027,6 @@ function TopicTile({
         )}
         <p className="topic-tile-summary">{topic.summary}</p>
       </div>
-      <span
-        className="topic-tile-speaker"
-        data-active={isPreviewing}
-        aria-hidden
-      >
-        {isPreviewing ? <Pause size={18} /> : <Volume2 size={18} />}
-      </span>
     </div>
   );
 }
