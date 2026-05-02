@@ -859,7 +859,7 @@ function TopicsScreen({
   previewingTopicId: string | null;
 }) {
   return (
-    <section className="topics-square" aria-label={`${pathLabel(tradition)} reflections for today`}>
+    <section className="page-frame topics-square" aria-label={`${pathLabel(tradition)} reflections for today`}>
       <header className="topics-square-header">
         <div className="topics-square-pathmark">
           <PathMark tradition={tradition} />
@@ -1035,7 +1035,7 @@ function LibraryScreen({
   );
 
   return (
-    <section className="sacred-panel rounded-[18px] p-6">
+    <section className="page-frame sacred-panel">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button className="large-button secondary-light" onClick={onBack}>
           <ArrowLeft aria-hidden size={28} />
@@ -1294,7 +1294,7 @@ function LessonScreen({
   const nextTopic = idx >= 0 && idx < allTopics.length - 1 ? allTopics[idx + 1] : null;
 
   return (
-    <section className="lesson-square" aria-label="Today's reflection">
+    <section className="page-frame lesson-square" aria-label="Today's reflection">
       <header className="lesson-square-header">
         <button className="large-button secondary-light lesson-back" onClick={onBack}>
           <ArrowLeft aria-hidden size={22} />
@@ -1480,7 +1480,7 @@ function QuestionScreen({
   const answer = lesson.question.options.find((option) => option.id === selectedAnswer);
 
   return (
-    <section className="sacred-panel rounded-[18px] p-6">
+    <section className="page-frame sacred-panel">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button className="large-button secondary-light" onClick={onBack}>
           <ArrowLeft aria-hidden size={28} />
@@ -1636,7 +1636,7 @@ function SettingsScreen({
   }
 
   return (
-    <section className="sacred-panel rounded-[18px] p-6">
+    <section className="page-frame sacred-panel">
       <div className="flex flex-wrap items-center justify-between gap-4">
         {backHomeButton}
         <Users aria-hidden className="text-[var(--navy)]" size={42} />

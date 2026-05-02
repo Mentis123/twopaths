@@ -73,6 +73,42 @@ a:focus-visible {
   box-shadow: var(--shadow);
 }
 
+/* When a panel ALSO has page-frame, the navy frame provides the bg/shadow.
+ * Suppress the cream gradient + box-shadow so the gold corners are visible. */
+.page-frame.sacred-panel,
+.page-frame.topics-square,
+.page-frame.lesson-square {
+  background: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--cream);
+  padding: 0;
+}
+
+/* Brighten the bits that used to be on cream and are now on navy.
+ * Inside cards (topic-tile, lesson-tile, answer-card, library-*) we keep
+ * the existing dark text since the cards still have cream backgrounds. */
+.page-frame .topics-square-source,
+.page-frame .lesson-hero-voice {
+  color: rgba(255, 250, 240, 0.75);
+}
+
+.page-frame .lesson-square-title {
+  color: var(--cream);
+}
+
+.page-frame .topics-square-modes .segmented-choice:not([data-active="true"]),
+.page-frame .lesson-mode-row .segmented-choice:not([data-active="true"]) {
+  background: rgba(255, 250, 240, 0.92);
+  color: var(--ink);
+}
+
+.page-frame > .lesson-square-actions .large-button.secondary-light,
+.page-frame > .topics-square-footer .large-button.secondary-light {
+  background: rgba(255, 250, 240, 0.92);
+}
+
 .large-button {
   min-height: 64px;
   border-radius: 24px;
@@ -437,18 +473,16 @@ a:focus-visible {
 /* Square 2x2 Topics layout — same visual frame as the home yin-yang square */
 .topics-square {
   width: min(100%, calc(100vh - 56px), 920px);
-  aspect-ratio: 1;
   margin: 0 auto;
   display: grid;
   grid-template-rows: auto 1fr auto auto;
   gap: 14px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(200, 132, 29, 0.32);
-  background:
-    linear-gradient(135deg, rgba(255, 249, 238, 0.97), rgba(247, 236, 217, 0.92)),
-    radial-gradient(circle at 24% 12%, rgba(242, 212, 138, 0.30), transparent 18rem);
-  box-shadow: var(--shadow);
+  color: var(--cream);
+}
+
+.topics-square > .topics-square-header,
+.topics-square > .topics-square-footer {
+  color: var(--cream);
 }
 
 .topics-square-header {
@@ -777,6 +811,30 @@ a:focus-visible {
   }
 }
 
+/* Universal page frame — gold ornamental corners on deep navy.
+ * 9-slice via border-image so corners stay crisp at any container size.
+ * The "fill" keyword paints the center area too (navy with subtle vignette
+ * baked into the source image). */
+.page-frame {
+  position: relative;
+  border-style: solid;
+  border-width: clamp(28px, 4.5vw, 56px);
+  border-color: transparent;
+  border-image: url("/assets/page-frame.png") 180 fill / clamp(28px, 4.5vw, 56px) / 0 stretch;
+  background-color: #00152d;
+  border-radius: 4px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.page-frame-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
 /* Lesson square — same sacred frame aesthetic as topics-square, content tiled */
 .lesson-square {
   width: min(100%, 920px);
@@ -784,13 +842,11 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(200, 132, 29, 0.32);
-  background:
-    linear-gradient(135deg, rgba(255, 249, 238, 0.97), rgba(247, 236, 217, 0.92)),
-    radial-gradient(circle at 24% 12%, rgba(242, 212, 138, 0.30), transparent 18rem);
-  box-shadow: var(--shadow);
+  color: var(--cream);
+}
+
+.lesson-square-title {
+  color: var(--cream) !important;
 }
 
 .lesson-square-header {
