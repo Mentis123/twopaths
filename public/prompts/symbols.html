@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Two Paths — symbol prompts</title>
+<style>
+  :root {
+    --navy: #001d3d;
+    --navy-soft: #06345b;
+    --gold: #f2d48a;
+    --gold-deep: #c8841d;
+    --cream: #fff9ee;
+    --paper: #f7ecd9;
+    --ink: #17120c;
+    --sage: #6d7f62;
+    --rose: #7f3548;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(circle at 12% 18%, rgba(242, 212, 138, 0.2), transparent 28rem),
+      linear-gradient(135deg, #fffaf0 0%, #f9efde 45%, #eef3ef 100%);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.5;
+    padding: 32px 16px 80px;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  h1 {
+    font-size: 38px;
+    color: var(--navy);
+    margin: 0 0 6px;
+  }
+  header p {
+    margin: 0;
+    color: var(--sage);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 17px;
+  }
+  .lede {
+    background: rgba(255, 250, 240, 0.85);
+    border: 1px solid rgba(0, 29, 61, 0.12);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 28px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    color: var(--ink);
+  }
+  .lede strong { color: var(--navy); }
+  .lede ol {
+    margin: 10px 0 0;
+    padding-left: 22px;
+  }
+  .lede li { margin: 4px 0; }
+  h2 {
+    font-size: 22px;
+    color: var(--navy);
+    margin: 36px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 29, 61, 0.18);
+    font-family: Arial, Helvetica, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .card {
+    background: rgba(255, 250, 240, 0.92);
+    border: 1px solid rgba(0, 29, 61, 0.12);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 6px 16px rgba(26, 18, 10, 0.06);
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .num {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+  }
+  .filename {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 14px;
+    color: var(--navy);
+    background: rgba(0, 29, 61, 0.06);
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .copy {
+    border: 1px solid rgba(0, 29, 61, 0.18);
+    background: linear-gradient(180deg, #ffe7a7, #e3ad4f);
+    color: #16110b;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 120ms ease;
+  }
+  .copy:hover { transform: translateY(-1px); }
+  .copy.copied { background: var(--navy); color: var(--cream); }
+  pre {
+    margin: 0;
+    background: rgba(0, 29, 61, 0.04);
+    border: 1px solid rgba(0, 29, 61, 0.08);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: Menlo, Consolas, monospace;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+  .pin {
+    background: linear-gradient(135deg, var(--navy), var(--navy-soft));
+    color: var(--cream);
+    border-color: rgba(255, 231, 167, 0.5);
+  }
+  .pin .num { color: var(--gold); }
+  .pin .filename { background: rgba(255, 249, 238, 0.15); color: var(--cream); }
+  .pin pre { background: rgba(255, 249, 238, 0.08); border-color: rgba(255, 249, 238, 0.18); color: var(--cream); }
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    color: var(--sage);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Two Paths — symbol prompts</h1>
+  <p>13 prompts in download order. Generate top-to-bottom; deliver as a single batch.</p>
+</header>
+
+<div class="lede">
+  <strong>How to use:</strong>
+  <ol>
+    <li>Each prompt is self-contained — copy + paste into your image generator (Midjourney, Sora, Nano Banana, Imagen, etc.) and run.</li>
+    <li>Generate them in order. Download each as <code>01.png</code>, <code>02.png</code>, … through <code>13.png</code> (or just keep them in download-time order).</li>
+    <li>Send me the batch back — I'll rename per the filenames shown and wire them into the app.</li>
+    <li>Outputs should be <strong>square 512×512 PNG with transparent background</strong> wherever possible.</li>
+  </ol>
+</div>
+
+<div class="card pin" id="pin-style">
+  <div class="card-head">
+    <span class="num">Style anchor</span>
+    <span class="filename">included in every prompt below</span>
+    <button class="copy" data-target="style">Copy style guide</button>
+  </div>
+<pre id="style">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.</pre>
+</div>
+
+<h2>1. Path-mark icons (replaces the cringe Buddhism flower + CSS Star of David)</h2>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">01</span>
+    <span class="filename">judaism.png</span>
+    <button class="copy" data-target="p01">Copy</button>
+  </div>
+<pre id="p01">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A single elegant Star of David in burnished gold leaf, with subtle inner filigree — not a flat icon, more like a small jewel. Faint warm glow behind it. No text. No decorative border.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">02</span>
+    <span class="filename">buddhism.png</span>
+    <button class="copy" data-target="p02">Copy</button>
+  </div>
+<pre id="p02">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A single open lotus blossom, gold petals with deep navy shadow, viewed slightly from above. Hand-painted, devotional, not flat-icon. Faint warm glow behind it. No text. No decorative border.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">03</span>
+    <span class="filename">both.png</span>
+    <button class="copy" data-target="p03">Copy</button>
+  </div>
+<pre id="p03">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small ornamental keystone bridging two arches — a stylised yin-yang mark in the keystone's centre, gold and navy halves. Two short arched lines hinting at meeting. Hand-painted, alchemical-manuscript feel. No text.</pre>
+</div>
+
+<h2>2. Closing-line icons (small marks in the lesson detail tiles)</h2>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">04</span>
+    <span class="filename">mark-takeaway.png</span>
+    <button class="copy" data-target="p04">Copy</button>
+  </div>
+<pre id="p04">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small olive sprig in gold leaf, two leaves and one ripe drupe, against navy. Devotional botanical illustration, not flat-icon.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">05</span>
+    <span class="filename">mark-reflection.png</span>
+    <button class="copy" data-target="p05">Copy</button>
+  </div>
+<pre id="p05">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small still-water surface in a shallow bronze bowl, with a single concentric ripple, viewed from above. Gold rim, navy water with gold reflections.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">06</span>
+    <span class="filename">mark-closing.png</span>
+    <button class="copy" data-target="p06">Copy</button>
+  </div>
+<pre id="p06">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A single beeswax candle, lit, with a slight warm glow halo around the flame. Gold base, navy ground.</pre>
+</div>
+
+<h2>3. Mode badge icons (Listen / Story / Quiz pills)</h2>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">07</span>
+    <span class="filename">mode-listen.png</span>
+    <button class="copy" data-target="p07">Copy</button>
+  </div>
+<pre id="p07">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small ear in gold leaf, slightly stylised like a Byzantine icon detail, with a faint sound-wave arc curving toward it.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">08</span>
+    <span class="filename">mode-story.png</span>
+    <button class="copy" data-target="p08">Copy</button>
+  </div>
+<pre id="p08">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small open scroll, gold edges, slight curl, with one stylised flowing line of "writing" (not real letters) on it.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">09</span>
+    <span class="filename">mode-quiz.png</span>
+    <button class="copy" data-target="p09">Copy</button>
+  </div>
+<pre id="p09">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small ornate brass key floating on navy, with a small question-mark shape forged into its handle. Gold and warm bronze.</pre>
+</div>
+
+<h2>4. Section headers (Library tab marks)</h2>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">10</span>
+    <span class="filename">tab-reflections.png</span>
+    <button class="copy" data-target="p10">Copy</button>
+  </div>
+<pre id="p10">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small stack of three closed books, gold and indigo bindings, viewed from a slight angle, illuminated like an old library.</pre>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">11</span>
+    <span class="filename">tab-music.png</span>
+    <button class="copy" data-target="p11">Copy</button>
+  </div>
+<pre id="p11">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A single Tibetan singing bowl with a soft gold rim glow on a navy ground, viewed three-quarters. Hand-painted, contemplative.</pre>
+</div>
+
+<h2>5. Empty-state illustration</h2>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">12</span>
+    <span class="filename">empty-music.png (use 800×600 if your tool allows; square is fine too)</span>
+    <button class="copy" data-target="p12">Copy</button>
+  </div>
+<pre id="p12">Painterly devotional aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel.
+
+A single empty bronze bowl on a stone surface, evening light, navy backdrop, gold accents. Quiet, waiting feeling. Negative space around the bowl. Hand-painted, not flat illustration.</pre>
+</div>
+
+<h2>6. Shuffle / surprise mark</h2>
+
+<div class="card">
+  <div class="card-head">
+    <span class="num">13</span>
+    <span class="filename">mark-shuffle.png</span>
+    <button class="copy" data-target="p13">Copy</button>
+  </div>
+<pre id="p13">Painterly, ornate, slightly weathered gold-leaf-on-deep-navy aesthetic. Warm golds (#c8841d, #f2d48a) on navy ground (#001d3d). Hand-illuminated manuscript feel — like a 19th-century devotional book cover. Centered subject. Square framing. PNG with transparent background. 512×512.
+
+A small alchemical compass-rose with eight points, gold on navy, hand-illuminated. Slight star-burst glow at centre.</pre>
+</div>
+
+<footer>
+  When you're done, drop the batch into <code>public/assets/symbols/</code> or just hand me the files and I'll rename + wire.
+</footer>
+</div>
+
+<script>
+document.querySelectorAll(".copy").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const id = btn.getAttribute("data-target");
+    const el = document.getElementById(id);
+    if (!el) return;
+    try {
+      await navigator.clipboard.writeText(el.textContent.trim());
+      const original = btn.textContent;
+      btn.textContent = "Copied ✓";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove("copied");
+      }, 1400);
+    } catch {
+      // Fallback: select the text so user can ⌘C / Ctrl+C
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = "Selected — press ⌘/Ctrl+C";
+    }
+  });
+});
+</script>
+</body>
+</html>
