@@ -125,6 +125,18 @@ html[data-ambient-collapsed="1"] .app-shell {
   color: var(--ink);
 }
 
+/* All segmented-choice pills on the navy frame need readable defaults
+ * (Library tabs, tradition filter pills, mode pills, etc.) — cream
+ * background with dark text when inactive, navy with cream when active. */
+.page-frame .segmented-choice {
+  background: rgba(255, 250, 240, 0.92);
+  color: var(--ink);
+}
+.page-frame .segmented-choice[data-active="true"] {
+  background: var(--navy);
+  color: #fffaf0;
+}
+
 .page-frame > .lesson-square-actions .large-button.secondary-light,
 .page-frame > .topics-square-footer .large-button.secondary-light {
   background: rgba(255, 250, 240, 0.92);

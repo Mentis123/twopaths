@@ -231,6 +231,24 @@ function HomeInner() {
     return () => window.clearTimeout(timeoutId);
   }, []);
 
+  // Stop lesson narration whenever the user navigates away from the lesson
+  // or question screens. Going lesson↔question pauses (preserves position);
+  // going to home / topics / library / settings stops cleanly.
+  useEffect(() => {
+    if (screen !== "lesson" && screen !== "question") {
+      audioRef.current?.pause();
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      window.speechSynthesis?.cancel();
+      utteranceRef.current = null;
+      setIsPlaying(false);
+    }
+    if (screen !== "topics") {
+      // Also stop any topic-tile preview when leaving the topics page
+      previewAudioRef.current?.pause();
+      previewAudioRef.current = null;
+    }
+  }, [screen]);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(
