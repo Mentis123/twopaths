@@ -64,8 +64,11 @@ export type LessonSession = {
   question: QuizQuestion;
   closing: {
     takeaway: string;
+    takeawayAudioUrl?: string;
     reflection: string;
+    reflectionAudioUrl?: string;
     line: string;
+    lineAudioUrl?: string;
   };
   sources?: SourceLink[];
   themes?: string[];

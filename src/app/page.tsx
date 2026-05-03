@@ -738,6 +738,7 @@ function HomeInner() {
             error={error}
             narrationError={narrationError}
             mode={mode}
+            onSpeak={speakWithFallback}
             setMode={(nextMode) => {
               if (nextMode === mode || !selectedTopic) return;
               setMode(nextMode);
@@ -928,9 +929,6 @@ function TopicsScreen({
   return (
     <section className="page-frame topics-square" aria-label={`${pathLabel(tradition)} reflections for today`}>
       <header className="topics-square-header">
-        <div className="topics-square-pathmark">
-          <PathMark tradition={tradition} />
-        </div>
         <div className="topics-square-modes">
           {modes.map((item) => (
             <button
@@ -980,6 +978,7 @@ function TopicsScreen({
           <img src="/assets/symbols/mark-shuffle.png" alt="" className="button-icon" />
           Shuffle
         </button>
+        <PathMark tradition={tradition} />
       </footer>
 
       {!isLoading && topics.length > 0 && (
@@ -1304,6 +1303,36 @@ function MusicLibrary() {
   );
 }
 
+function ClosingTile({
+  symbol,
+  label,
+  text,
+  audioUrl,
+  onSpeak,
+}: {
+  symbol: string;
+  label: string;
+  text: string;
+  audioUrl?: string;
+  onSpeak: (text: string, audioUrl?: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="lesson-tile lesson-closing-tile"
+      onClick={() => onSpeak(text, audioUrl)}
+      aria-label={`Hear the ${label.toLowerCase()}: ${text}`}
+    >
+      <span className="lesson-closing-label">
+        <img src={`/assets/symbols/${symbol}.png`} alt="" className="lesson-closing-mark" />
+        {label}
+        <Volume2 aria-hidden size={14} className="lesson-closing-speaker" />
+      </span>
+      <p>{text}</p>
+    </button>
+  );
+}
+
 function LessonScreen({
   topic,
   lesson,
@@ -1325,6 +1354,7 @@ function LessonScreen({
   onRepeat,
   onQuestion,
   onFinish,
+  onSpeak,
 }: {
   topic: Topic | null;
   lesson: LessonSession | null;
@@ -1346,6 +1376,7 @@ function LessonScreen({
   onRepeat: () => void;
   onQuestion: () => void;
   onFinish: () => void;
+  onSpeak: (text: string, audioUrl?: string) => void;
 }) {
   const ready = Boolean(lesson);
   const audioReady = Boolean(lesson?.audioAvailable);
@@ -1433,27 +1464,27 @@ function LessonScreen({
 
       {ready && (
         <div className="lesson-closing-row">
-          <div className="lesson-tile lesson-closing-tile">
-            <span className="lesson-closing-label">
-              <img src="/assets/symbols/mark-takeaway.png" alt="" className="lesson-closing-mark" />
-              Takeaway
-            </span>
-            <p>{lesson!.closing.takeaway}</p>
-          </div>
-          <div className="lesson-tile lesson-closing-tile">
-            <span className="lesson-closing-label">
-              <img src="/assets/symbols/mark-reflection.png" alt="" className="lesson-closing-mark" />
-              Reflection
-            </span>
-            <p>{lesson!.closing.reflection}</p>
-          </div>
-          <div className="lesson-tile lesson-closing-tile">
-            <span className="lesson-closing-label">
-              <img src="/assets/symbols/mark-closing.png" alt="" className="lesson-closing-mark" />
-              Closing
-            </span>
-            <p>{lesson!.closing.line}</p>
-          </div>
+          <ClosingTile
+            symbol="mark-takeaway"
+            label="Takeaway"
+            text={lesson!.closing.takeaway}
+            audioUrl={lesson!.closing.takeawayAudioUrl}
+            onSpeak={onSpeak}
+          />
+          <ClosingTile
+            symbol="mark-reflection"
+            label="Reflection"
+            text={lesson!.closing.reflection}
+            audioUrl={lesson!.closing.reflectionAudioUrl}
+            onSpeak={onSpeak}
+          />
+          <ClosingTile
+            symbol="mark-closing"
+            label="Closing"
+            text={lesson!.closing.line}
+            audioUrl={lesson!.closing.lineAudioUrl}
+            onSpeak={onSpeak}
+          />
         </div>
       )}
 

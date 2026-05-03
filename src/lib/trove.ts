@@ -1106,6 +1106,12 @@ export function buildPreviewText(topicId: string): string | null {
   return parts.join(". ");
 }
 
+export function getClosingTexts(topicId: string): { takeaway: string; reflection: string; line: string } | null {
+  const item = troveById.get(topicId);
+  if (!item) return null;
+  return { takeaway: item.takeaway, reflection: item.reflection, line: item.closingLine };
+}
+
 export function buildLessonScript(topicId: string, mode: SessionMode): string | null {
   const item = troveById.get(topicId);
   if (!item) return null;
@@ -1189,8 +1195,11 @@ export function troveLesson({
     },
     closing: {
       takeaway: item.takeaway,
+      takeawayAudioUrl: `/audio/closings/${item.id}/takeaway.mp3`,
       reflection: item.reflection,
+      reflectionAudioUrl: `/audio/closings/${item.id}/reflection.mp3`,
       line: item.closingLine,
+      lineAudioUrl: `/audio/closings/${item.id}/line.mp3`,
     },
     sources: item.sourceKeys.map((key) => sources[key]),
     themes: item.themes,

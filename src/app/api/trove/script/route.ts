@@ -1,5 +1,5 @@
 import "server-only";
-import { buildLessonScript, buildPreviewText, listTroveIds } from "@/lib/trove";
+import { buildLessonScript, buildPreviewText, getClosingTexts, listTroveIds } from "@/lib/trove";
 
 const validModes = new Set(["listen", "story", "quiz"]);
 
@@ -22,6 +22,12 @@ export async function GET(request: Request) {
     const text = buildPreviewText(id);
     if (!text) return Response.json({ error: "Unknown trove id" }, { status: 404 });
     return Response.json({ id, kind: "preview", text });
+  }
+
+  if (url.searchParams.get("closing") === "1") {
+    const c = getClosingTexts(id);
+    if (!c) return Response.json({ error: "Unknown trove id" }, { status: 404 });
+    return Response.json({ id, kind: "closing", ...c });
   }
 
   if (!mode || !validModes.has(mode)) {
